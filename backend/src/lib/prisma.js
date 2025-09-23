@@ -1,44 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient({
-  log: ["query", "error", "warn", "info"],
+  log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   errorFormat: "pretty",
 });
 
-// Test database connection function
-async function testConnection() {
+export const testConnection = async () => {
   try {
-    console.log("Attempting database connection...");
-    console.log(
-      "Database URL:",
-      process.env.DATABASE_URL?.replace(/:([^:@]+)@/, ":****@")
-    ); // Hide password
     await prisma.$connect();
-    const result =
-      await prisma.$queryRaw`SELECT current_database() as db, current_user as user, version() as version`;
-    console.log("Database connection successful:", result[0]);
+    await prisma.$queryRaw`SELECT 1`;
+    console.log("✅ Database connected successfully");
     return true;
   } catch (error) {
-    console.error("Database connection failed:", {
-      message: error.message,
-      code: error.code,
-      clientVersion: prisma._engineConfig.generator.config.prismaClientVersion,
-    });
+    console.error("❌ Database connection error:", error.message);
     return false;
   }
-}
+};
 
-// Middleware for logging queries in development
-if (process.env.NODE_ENV === "development") {
-  prisma.$use(async (params, next) => {
-    const before = Date.now();
-    const result = await next(params);
-    const after = Date.now();
-    console.log(
-      `Query ${params.model}.${params.action} took ${after - before}ms`
-    );
-    return result;
-  });
-}
-
-export { prisma as default, testConnection };
+export default prisma;

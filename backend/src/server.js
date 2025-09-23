@@ -3,86 +3,67 @@ import cors from "cors";
 import dotenv from "dotenv";
 import prisma, { testConnection } from "./lib/prisma.js";
 import diaryRoutes from "./routes/diaryRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import { errorHandler, requestLogger } from "./middleware/error.middleware.js";
+import { corsOptions } from "./config/cors.js";
 
+// Load environment variables
 dotenv.config();
 
+// Initialize express app
 const app = express();
 
-app.use(cors());
+// Global middleware
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(requestLogger);
 
-// Routes
+// Health check endpoint
+app.get("/health", async (req, res) => {
+  const isDbConnected = await testConnection();
+  res.json({
+    status: isDbConnected ? "healthy" : "unhealthy",
+    timestamp: new Date().toISOString(),
+    database: { connected: isDbConnected },
+  });
+});
+
+// API routes
+app.use("/api/auth", authRoutes);
 app.use("/api/diary", diaryRoutes);
 
-// Health check route
-app.get("/health", async (req, res, next) => {
-  try {
-    const dbConnected = await testConnection();
-    const currentTime = await prisma.$queryRaw`SELECT NOW() as time`;
+// Error handling
+app.use(errorHandler);
 
-    res.json({
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-      database: {
-        connected: dbConnected,
-        serverTime: currentTime[0].time,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Test route
-app.get("/", (req, res) => {
-  res.json({ message: "Merodin API Server" });
-});
-
+// Start server
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, async () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-
-  // Test database connection on startup
   try {
     const isConnected = await testConnection();
     if (isConnected) {
-      console.log("✅ Database connection established successfully");
+      console.log(`
+✅ Database connected successfully
+🚀 Server running on http://localhost:${PORT}
+🔒 Environment: ${process.env.NODE_ENV || "development"}
+      `);
     } else {
-      console.log("❌ Database connection test failed");
+      throw new Error("Database connection failed");
     }
   } catch (error) {
-    console.error("❌ Database connection error:", error.message);
+    console.error("Server startup failed:", error);
+    process.exit(1);
   }
 });
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
-  console.info("SIGTERM signal received.");
+const handleShutdown = async () => {
+  console.log("Initiating graceful shutdown...");
   server.close(async () => {
-    console.log("Server closed.");
     await prisma.$disconnect();
-    console.log("Database connection closed.");
+    console.log("Server shutdown completed");
     process.exit(0);
   });
-});
+};
 
-process.on("SIGINT", () => {
-  console.info("SIGINT signal received.");
-  server.close(async () => {
-    console.log("Server closed.");
-    await prisma.$disconnect();
-    console.log("Database connection closed.");
-    process.exit(0);
-  });
-});
-
-// Global error handler middleware - should be after all routes
-app.use((err, req, res, next) => {
-  console.error("Error:", err.message);
-  console.error("Stack:", err.stack);
-  res.status(500).json({
-    error: "Internal Server Error",
-    message: err.message,
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-  });
-});
+process.on("SIGTERM", handleShutdown);
+process.on("SIGINT", handleShutdown);
