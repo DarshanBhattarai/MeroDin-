@@ -46,7 +46,7 @@ export const validateConnection = async () => {
     client = await pool.connect();
     await client.query("SELECT NOW()");
     return true;
-  } catch (err) {
+  } catch (err) { 
     console.error("Database connection error:", err.message);
     throw err;
   } finally {
