@@ -1,33 +1,41 @@
+// src/utils/auth.js
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { AuthenticationError } from "./errors.js";
+import crypto from "crypto";
 
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
-export const hashPassword = async (password) => {
-  return bcrypt.hash(password, SALT_ROUNDS);
+export const hashPassword = async (plain) => {
+  return bcrypt.hash(plain, SALT_ROUNDS);
 };
 
-export const comparePassword = async (password, hashedPassword) => {
-  return bcrypt.compare(password, hashedPassword);
+export const comparePassword = async (plain, hash) => {
+  return bcrypt.compare(plain, hash);
 };
 
-export const generateToken = (payload) => {
-  if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET environment variable is not set");
-  }
-  return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+export const generateAccessToken = (payload) => {
+  return jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
+    expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || "15m",
   });
 };
 
-export const verifyToken = (token) => {
-  if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET environment variable is not set");
+export const generateRefreshToken = (payload) => {
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || "30d",
+  });
+};
+
+// Hash an arbitrary token (refresh/otp) before storing in DB
+export const hashToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
+
+// Create a numeric OTP (6 digits) — you can change to alphanumeric if desired
+export const generateOTP = (length = 6) => {
+  const digits = "0123456789";
+  let otp = "";
+  for (let i = 0; i < length; i++) {
+    otp += digits[Math.floor(Math.random() * 10)];
   }
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    throw new AuthenticationError("Invalid token");
-  }
+  return otp;
 };

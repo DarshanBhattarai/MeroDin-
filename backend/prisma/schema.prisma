@@ -18,10 +18,18 @@ model DiaryEntry {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  name               String?
+  password           String
+  isEmailVerified    Boolean   @default(false)
+  // hashed refresh token for rotation/revocation (nullable)
+  refreshTokenHash   String?   
+  // OTP fields (hashed tokens)
+  otpHash            String?   
+  otpExpiresAt       DateTime?
+  otpType            String?   // e.g. "EMAIL_VERIFY" | "PASSWORD_RESET"
+  otpAttempts        Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }

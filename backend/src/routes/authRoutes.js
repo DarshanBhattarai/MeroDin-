@@ -1,14 +1,23 @@
+// src/routes/auth.routes.js
 import express from "express";
-import { register, login, getProfile } from "../controllers/authController.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+import {
+  register,
+  verifyEmailOTP,
+  login,
+  refreshTokens,
+  logout,
+  requestPasswordReset,
+  resetPassword,
+} from "../controllers/authController.js";
 
 const router = express.Router();
 
-// Public routes
 router.post("/register", register);
+router.post("/verify-email-otp", verifyEmailOTP);
 router.post("/login", login);
-
-// Protected routes
-router.get("/profile", authenticate, getProfile);
+router.post("/refresh", refreshTokens);
+router.post("/logout", logout);
+router.post("/request-password-reset", requestPasswordReset);
+router.post("/reset-password", resetPassword);
 
 export default router;
