@@ -1,104 +1,136 @@
+// app/auth/signup/page.tsx
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { Eye, EyeOff } from "lucide-react";
 
-export default function RegisterPage() {
-  const router = useRouter();
-  const [name, setName] = useState("");
+export default function SignupForm() {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match.");
       return;
     }
 
-    try {
-      const res = await fetch("http://localhost:5000/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-      });
+    setIsLoading(true);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || "Registration failed");
-        return;
-      }
-
-      localStorage.setItem("token", data.token);
-      router.push("/dashboard");
-    } catch (err) {
-      setError("Something went wrong");
-      console.error(err);
-    }
+    // Simulate API call
+    setTimeout(() => {
+      setIsLoading(false);
+      toast.success(`Welcome ${username}! Your account has been successfully created.`);
+    }, 1500);
   };
 
   return (
-    <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md mx-auto mt-12">
-      <h1 className="text-3xl font-bold text-center mb-2">Create Account</h1>
-      <p className="text-center text-gray-500 mb-6">
-        Register to start your journey
-      </p>
-
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-md mx-auto p-6 space-y-6 bg-white rounded-lg shadow-md"
+    >
+      <h2 className="text-3xl font-bold text-center">Create Account</h2>
+      <p className="text-center text-gray-500">Sign up to get started with your account</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          placeholder="Full Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
-          required
-        />
+        {/* Username */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-sm font-medium text-gray-700">Username</label>
+          <input
+            type="text"
+            placeholder="Enter your username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
+        {/* Email */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-sm font-medium text-gray-700">Email</label>
+          <input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Password */}
+        <div className="flex flex-col relative">
+          <label className="mb-1 text-sm font-medium text-gray-700">Password</label>
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        </div>
+
+        {/* Confirm Password */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-sm font-medium text-gray-700">Confirm Password</label>
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Confirm your password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Terms Checkbox */}
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            className="rounded border-gray-300"
+            required
+          />
+          <label className="text-sm text-gray-600">
+            I agree to the <span className="text-blue-500 underline cursor-pointer">Terms of Service</span> and <span className="text-blue-500 underline cursor-pointer">Privacy Policy</span>
+          </label>
+        </div>
+
+        {/* Submit Button */}
         <button
           type="submit"
-          className="w-full bg-green-500 text-white p-3 rounded font-semibold hover:bg-green-600 transition"
+          disabled={isLoading}
+          className={`w-full py-2 rounded-md text-white font-medium transition-all ${
+            isLoading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          Register
+          {isLoading ? "Creating account..." : "Create Account"}
         </button>
       </form>
 
-      <p className="text-center text-gray-500 mt-6">
-        Already have an account?{" "}
-        <a href="/auth/login" className="text-green-500 hover:underline">
-          Sign In
-        </a>
+      {/* Sign in link */}
+      <p className="text-center text-gray-500">
+        Already have an account? <span className="text-blue-500 cursor-pointer underline">Sign in</span>
       </p>
-    </div>
+
+      <ToastContainer position="top-right" autoClose={3000} />
+    </motion.div>
   );
 }

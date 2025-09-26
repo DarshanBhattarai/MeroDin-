@@ -1,12 +1,12 @@
-// app/auth/layout.tsx
-import React, { ReactNode } from "react";
+"use client";
 
-export default function AuthLayout({ children }: { children: ReactNode }) {
+import AuthForm from "@/features/auth/components/AuthForm";
+
+export default function RegisterPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-md p-6  ">
-        {children} {/* Login or Register page content */}
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <AuthForm type="signup" />
     </div>
   );
 }
+  

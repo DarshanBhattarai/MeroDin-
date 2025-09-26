@@ -1,21 +1,15 @@
 "use client";
+import React, { MouseEventHandler } from "react";
 
-import React from "react";
-// import { useGoogleLogin } from "@react-oauth/google";
+type GoogleLoginProps = {
+  onClick?: MouseEventHandler<HTMLButtonElement>;
+};
 
-const GoogleLoginButton: React.FC = () => {
-//   const googleLogin = useGoogleLogin({
-//     onSuccess: (authResult: { code?: string }) => {
-//       console.log("Google auth code:", authResult.code);
-//     },
-//     onError: (error) => console.error("Google login error:", error),
-//     flow: "auth-code",
-//   });
-
+export default function GoogleLogin({ onClick }: GoogleLoginProps) {
   return (
     <button
       type="button"
-    //   onClick={() => googleLogin()}
+      onClick={onClick}
       className="flex items-center justify-center gap-3 px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg shadow hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-95 w-full"
     >
       <svg
@@ -43,6 +37,4 @@ const GoogleLoginButton: React.FC = () => {
       <span className="text-sm font-medium">Sign in with Google</span>
     </button>
   );
-};
-
-export default GoogleLoginButton;
+}
