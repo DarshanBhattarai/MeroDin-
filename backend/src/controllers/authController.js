@@ -19,15 +19,11 @@ const COOKIE_OPTIONS = {
 
 export const register = async (req, res, next) => {
   try {
-    const { email, password, name } = req.body;
-    const created = await userService.createUser({ email, password, name });
-
-    // Create OTP and send email verification via Redis
-    await userService.createAndSendOTP(created.id, "EMAIL_VERIFY");
-
-    res.status(201).json({
-      message: "User created. Verification OTP sent to email.",
-      user: { id: created.id, email: created.email, name: created.name },
+    const { email, password, fullName } = req.body;
+    // Delegate all business logic to the service
+    await userService.registerUser({ email, password,fullName });
+    res.status(200).json({
+      message: "OTP sent to your email for verification.",
     });
   } catch (err) {
     next(err);
@@ -36,9 +32,12 @@ export const register = async (req, res, next) => {
 
 export const verifyEmailOTP = async (req, res, next) => {
   try {
-    const { email, otp } = req.body; // now we use email instead of userId
-    await userService.verifyOTP(email, otp, "EMAIL_VERIFY");
-    res.json({ message: "Email verified successfully" });
+    const { email, otp } = req.body;
+    const user = await userService.verifyEmailOTP({ email, otp });
+    res.status(201).json({
+      message: "Email verified successfully. Account created.",
+      user: { id: user.id, email: user.email, fullName: user.fullName },
+    });
   } catch (err) {
     next(err);
   }

@@ -15,6 +15,7 @@ export type UserResponse = {
     email: string;
     token: string;
   };
+  message?: string;
 };
 
 // --- Helper for API requests ---
@@ -23,7 +24,7 @@ async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const res = await fetch(`${API_URL}${endpoint}`, {
-    credentials: "include", // for cookies/sessions
+    credentials: "include", // keeps cookies/sessions
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -31,15 +32,23 @@ async function apiFetch<T>(
     ...options,
   });
 
+  const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(error.message || "API request failed");
+    throw new Error(data.message || `Request failed: ${res.statusText}`);
   }
 
-  return res.json();
+  return data;
 }
 
 // --- Auth functions ---
+export async function register(data: AuthData): Promise<UserResponse> {
+  return apiFetch<UserResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function login(data: {
   email: string;
   password: string;
@@ -51,12 +60,6 @@ export async function login(data: {
   });
 }
 
-export async function register(data: AuthData): Promise<UserResponse> {
-  return apiFetch<UserResponse>("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
 export async function verifyOTP(data: { email: string; otp: string }) {
   return apiFetch("/api/auth/verify-email-otp", {
     method: "POST",
@@ -65,15 +68,13 @@ export async function verifyOTP(data: { email: string; otp: string }) {
 }
 
 export async function resendOTP(data: { email: string; type: string }) {
-  return apiFetch("/auth/resend-otp", {
+  return apiFetch("/api/auth/resend-otp", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export async function oauthLogin(
-  provider: "google" | "github"
-): Promise<UserResponse> {
+export async function oauthLogin(provider: "google" | "github") {
   return apiFetch<UserResponse>(`/auth/oauth/${provider}`, {
     method: "GET",
   });

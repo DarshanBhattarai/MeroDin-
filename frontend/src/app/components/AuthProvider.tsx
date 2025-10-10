@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import * as authService from "@/features/auth/services/authService";
+import { storage } from "@/utils/storage"; 
 
 // --- User type ---
 export type User = {
@@ -26,23 +27,13 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 type AuthProviderProps = { children: ReactNode };
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("user");
-      return saved ? JSON.parse(saved) : null;
-    }
-    return null;
-  });
+  const [user, setUser] = useState<User>(() => storage.get<User>("user"));
 
   const login = async (data: { email: string; password: string; rememberMe?: boolean }) => {
     try {
       const res = await authService.login(data);
       setUser(res.user);
-      if (data.rememberMe) {
-        localStorage.setItem("user", JSON.stringify(res.user));
-      } else {
-        sessionStorage.setItem("user", JSON.stringify(res.user));
-      }
+      storage.set("user", res.user, data.rememberMe ? "local" : "session");
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
@@ -53,7 +44,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const res = await authService.register(data);
       setUser(res.user);
-      localStorage.setItem("user", JSON.stringify(res.user));
+      storage.set("user", res.user, "local"); // always localStorage for register
     } catch (error) {
       console.error("Registration failed:", error);
       throw error;
@@ -64,7 +55,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const res = await authService.oauthLogin(provider);
       setUser(res.user);
-      localStorage.setItem("user", JSON.stringify(res.user));
+      storage.set("user", res.user, "local"); // OAuth login -> localStorage
     } catch (error) {
       console.error(`OAuth login failed (${provider}):`, error);
       throw error;
@@ -73,8 +64,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
+    storage.remove("user", "local");
+    storage.remove("user", "session");
   };
 
   return (

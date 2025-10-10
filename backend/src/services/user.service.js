@@ -1,51 +1,75 @@
-// src/services/userService.js
 import prisma from "../lib/prisma.js";
-import { ValidationError, NotFoundError } from "../utils/errors.js";
-import {
-  hashPassword,
-  comparePassword,
-  hashToken,
-  generateOTP,
-} from "../utils/auth.js";
+import redisClient from "../lib/redis.js";
+import { hashPassword, comparePassword, hashToken, generateOTP } from "../utils/auth.js";
 import { sendEmail } from "../utils/email.js";
-import redisClient from "../lib/redis.js"; // <-- new Redis client import
+import { ValidationError, NotFoundError } from "../utils/errors.js";
 
 const OTP_EXPIRE_SECONDS = Number(process.env.OTP_EXPIRES_MINUTES || 15) * 60;
+const PENDING_USER_EXPIRE = 600; // 10 min for pending registration
 
 const userService = {
-  async createUser(userData) {
-    const { email, password, name } = userData;
+  // ---------------- REGISTER ----------------
+  async registerUser({ email, password, fullName }) {
+    // check DB
     const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) throw new ValidationError("Email already registered");
+    if (existingUser && existingUser.isEmailVerified) {
+      throw new ValidationError("Email already registered and verified");
+    }
+
+    // check Redis
+    const pending = await redisClient.get(`pendingUser:${email}`);
+    if (pending) {
+      throw new ValidationError("An OTP is already sent. Please verify your email.");
+    }
 
     const hashedPassword = await hashPassword(password);
-    const user = await prisma.user.create({
-      data: { email, password: hashedPassword, name, isEmailVerified: false }, // mark unverified
+    const otp = generateOTP(6);
+    const otpHash = hashToken(otp);
+
+    // store in Redis
+    await redisClient.set(
+      `pendingUser:${email}`,
+      JSON.stringify({ email, fullName, hashedPassword, otp: otpHash }),
+      { EX: PENDING_USER_EXPIRE }
+    );
+
+    // send OTP
+    await sendEmail({
+      to: email,
+      subject: "Verify your email",
+      text: `Your OTP is ${otp}. It expires in 10 minutes.`,
+      html: `<p>Your OTP is <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
     });
 
+    return true;
+  },
+
+  // ---------------- VERIFY EMAIL OTP ----------------
+  async verifyEmailOTP({ email, otp }) {
+    const data = await redisClient.get(`pendingUser:${email}`);
+    if (!data) throw new ValidationError("OTP expired or not found. Please register again.");
+
+    const { fullName, hashedPassword, otp: storedHash } = JSON.parse(data);
+
+    if (hashToken(otp) !== storedHash) throw new ValidationError("Invalid OTP");
+
+    // create user in DB
+    const user = await prisma.user.create({
+      data: { email, fullName, password: hashedPassword, isEmailVerified: true },
+    });
+
+    await redisClient.del(`pendingUser:${email}`);
     return user;
   },
 
+  // ---------------- LOGIN ----------------
   async authenticateUser(email, password) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new ValidationError("Invalid credentials");
 
-    const isPasswordValid = await comparePassword(password, user.password);
-    if (!isPasswordValid) throw new ValidationError("Invalid credentials");
+    const isValid = await comparePassword(password, user.password);
+    if (!isValid) throw new ValidationError("Invalid credentials");
 
-    return user;
-  },
-
-  async getUserById(userId) {
-    const user = await prisma.user.findUnique({
-      where: { id: Number(userId) },
-    });
-    if (!user) throw new NotFoundError("User not found");
-    return user;
-  },
-  async getUserByEmail(email) {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return null; // not found
     return user;
   },
 
@@ -65,106 +89,32 @@ const userService = {
   },
 
   async verifyRefreshToken(userId, refreshToken) {
-    const user = await prisma.user.findUnique({
-      where: { id: Number(userId) },
-    });
+    const user = await prisma.user.findUnique({ where: { id: Number(userId) } });
     if (!user || !user.refreshTokenHash) return false;
     return user.refreshTokenHash === hashToken(refreshToken);
   },
 
-  // ------------------- Redis OTP Methods -------------------
-
-  async createAndSendOTP(userId, type = "EMAIL_VERIFY") {
-    const user = await prisma.user.findUnique({
-      where: { id: Number(userId) },
-    });
+  // ---------------- RESEND OTP ----------------
+  async resendOTP({ email, type }) {
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new NotFoundError("User not found");
 
     const otp = generateOTP(6);
     const otpHash = hashToken(otp);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRE_SECONDS * 1000);
 
-    // Save OTP in both Redis and DB
-    await redisClient.set(
-      `${type}:${user.email}`,
-      JSON.stringify({ userId, otp: otpHash }),
-      { EX: OTP_EXPIRE_SECONDS }
-    );
+    await redisClient.set(`${type}:${email}`, JSON.stringify({ userId: user.id, otp: otpHash }), { EX: OTP_EXPIRE_SECONDS });
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        otpHash,
-        otpExpiresAt: expiresAt,
-        otpType: type,
-        otpAttempts: 0,
-      },
-    });
-
-    // Send email
     await sendEmail({
-      to: user.email,
-      subject:
-        type === "EMAIL_VERIFY" ? "Verify your email" : "Password reset OTP",
-      text: `Your OTP is ${otp} — expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes`,
+      to: email,
+      subject: type === "EMAIL_VERIFY" ? "Verify your email" : "Password reset OTP",
+      text: `Your OTP is ${otp}. It expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.`,
       html: `<p>Your OTP is <strong>${otp}</strong>. It expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.</p>`,
-    });
-
-    return { success: true };
-  },
-
-  async verifyOTP(email, suppliedOtp, expectedType) {
-    const redisKey = `${expectedType}:${email}`;
-    let data = await redisClient.get(redisKey);
-
-    let userId, storedHash;
-
-    if (data) {
-      ({ userId, otp: storedHash } = JSON.parse(data));
-    } else {
-      // Fallback to DB
-      const user = await prisma.user.findUnique({ where: { email } });
-      if (!user || user.otpType !== expectedType || !user.otpHash) {
-        throw new ValidationError("OTP expired or not found");
-      }
-      if (user.otpExpiresAt < new Date()) {
-        throw new ValidationError("OTP expired");
-      }
-      userId = user.id;
-      storedHash = user.otpHash;
-    }
-
-    if (hashToken(suppliedOtp) !== storedHash) {
-      // increment attempts
-      await prisma.user.update({
-        where: { id: userId },
-        data: { otpAttempts: { increment: 1 } },
-      });
-      throw new ValidationError("Invalid OTP");
-    }
-
-    // Mark email verified if needed
-    if (expectedType === "EMAIL_VERIFY") {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isEmailVerified: true },
-      });
-    }
-
-    // Clear OTP from both Redis and DB
-    await redisClient.del(redisKey);
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        otpHash: null,
-        otpExpiresAt: null,
-        otpType: null,
-        otpAttempts: 0,
-      },
     });
 
     return true;
   },
+
+  // ---------------- PASSWORD RESET ----------------
   async setPassword(userId, newPassword) {
     const hashed = await hashPassword(newPassword);
     await prisma.user.update({
@@ -172,6 +122,16 @@ const userService = {
       data: { password: hashed, refreshTokenHash: null },
     });
     return true;
+  },
+
+  async getUserByEmail(email) {
+    return await prisma.user.findUnique({ where: { email } });
+  },
+
+  async getUserById(userId) {
+    const user = await prisma.user.findUnique({ where: { id: Number(userId) } });
+    if (!user) throw new NotFoundError("User not found");
+    return user;
   },
 };
 

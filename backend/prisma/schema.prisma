@@ -20,7 +20,7 @@ model DiaryEntry {
 model User {
   id                 Int       @id @default(autoincrement())
   email              String    @unique
-  name               String?
+  fullName           String?
   password           String
   isEmailVerified    Boolean   @default(false)
   // hashed refresh token for rotation/revocation (nullable)
