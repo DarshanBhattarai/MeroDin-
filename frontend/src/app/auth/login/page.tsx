@@ -1,11 +1,11 @@
 "use client";
 
-import AuthForm from "@/features/auth/components/AuthForm";
+import LoginForm from "@/features/auth/components/LoginForm";
 
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <AuthForm type="login" />
+      <LoginForm />
     </div>
   );
 }

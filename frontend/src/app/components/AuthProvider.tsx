@@ -13,8 +13,8 @@ type User = {
 // Auth context type
 type AuthContextType = {
   user: User;
-  login: (data: { email: string; password: string }) => Promise<void>;
-  register: (data: { email: string; password: string }) => Promise<void>;
+  login: (data: { email: string; password: string; rememberMe: boolean }) => Promise<void>;
+  register: (data: { fullName: string; email: string; password: string;  }) => Promise<void>;
   oauthLogin: (provider: "google" | "github") => Promise<void>;
   logout: () => void;
 };
