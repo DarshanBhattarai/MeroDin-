@@ -5,17 +5,18 @@ import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import OAuthButtons from "./OAuthButtons";
+import OTPBox from "./otpModel" // Import OTP component
 import useAuth from "../hooks/useAuth";
 
 export default function SignupForm() {
   const { register } = useAuth();
-  const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showOTP, setShowOTP] = useState(false); // OTP popup toggle
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -28,8 +29,11 @@ export default function SignupForm() {
 
     setLoading(true);
     try {
+      // Call backend register (which triggers OTP email)
       await register({ fullName, email, password });
-      window.location.href = "/dashboard";
+
+      // Show OTP verification popup
+      setShowOTP(true);
     } catch (err: any) {
       setError(err.message || "Registration failed");
     } finally {
@@ -37,9 +41,14 @@ export default function SignupForm() {
     }
   };
 
+  const handleOTPVerified = () => {
+    // Once OTP is verified, redirect to dashboard
+    window.location.href = "/dashboard";
+  };
+
   return (
     <div className="min-h-[75vh] flex items-center justify-center">
-      <Card className="w-full max-w-md p-8 bg-gray-900/90 border border-gray-700 rounded-2xl shadow-lg backdrop-blur-lg transition-all hover:shadow-xl">
+      <Card className="w-full max-w-md p-8">
         <h2 className="text-3xl font-bold text-black text-center mb-2">
           Create Your Account
         </h2>
@@ -110,6 +119,9 @@ export default function SignupForm() {
           </a>
         </p>
       </Card>
+
+      {/* Render OTP popup if signup succeeded */}
+      {showOTP && <OTPBox email={email} onVerified={handleOTPVerified} />}
     </div>
   );
 }

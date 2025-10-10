@@ -1,59 +1,80 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-type AuthData = {
+// --- Types ---
+export type AuthData = {
+  username?: string;
+  fullName?: string;
   email: string;
   password: string;
+  rememberMe?: boolean;
 };
 
-type UserResponse = {
+export type UserResponse = {
   user: {
+    username?: string;
     email: string;
     token: string;
-  }; // Adjust based on your backend response
+  };
 };
 
-async function login(data: AuthData): Promise<UserResponse> {
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+// --- Helper for API requests ---
+async function apiFetch<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    credentials: "include", // for cookies/sessions
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
   });
 
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Login failed");
+    const error = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(error.message || "API request failed");
   }
 
   return res.json();
 }
 
-async function register(data: AuthData): Promise<UserResponse> {
-  const res = await fetch(`${API_URL}/auth/register`, {
+// --- Auth functions ---
+export async function login(data: {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}): Promise<UserResponse> {
+  return apiFetch<UserResponse>("/api/auth/login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Registration failed");
-  }
-
-  return res.json();
 }
 
-async function oauthLogin(provider: "google" | "github"): Promise<UserResponse> {
-  const res = await fetch(`${API_URL}/auth/oauth/${provider}`, {
+export async function register(data: AuthData): Promise<UserResponse> {
+  return apiFetch<UserResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+export async function verifyOTP(data: { email: string; otp: string }) {
+  return apiFetch("/api/auth/verify-email-otp", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function resendOTP(data: { email: string; type: string }) {
+  return apiFetch("/auth/resend-otp", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function oauthLogin(
+  provider: "google" | "github"
+): Promise<UserResponse> {
+  return apiFetch<UserResponse>(`/auth/oauth/${provider}`, {
     method: "GET",
-    credentials: "include", // For cookies if backend sets session
   });
-
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || `${provider} login failed`);
-  }
-
-  return res.json();
 }
-
-export default { login, register, oauthLogin };
