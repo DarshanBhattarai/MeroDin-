@@ -73,8 +73,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const oauthLogin = async (provider: "google" | "github") => {
-    // Redirect browser to backend OAuth route
-    window.location.href = `http://localhost:5000/api/auth/${provider}`;
+    if (provider === "google") {
+      authService.googleLoginRedirect();
+    } else if (provider === "github") {
+      authService.githubLoginRedirect();
+    }
   };
 
   const logout = () => {

@@ -11,6 +11,7 @@ import {
   resendOTP,
 } from "../controllers/authController.js";
 import { googleAuthRedirect, googleAuthCallback } from "../controllers/googleController.js";
+import { githubAuthRedirect, githubAuthCallback } from "../controllers/githubController.js";
 
 const router = express.Router();
 
@@ -26,5 +27,8 @@ router.post("/resend-otp", resendOTP);
 
 router.get("/google", googleAuthRedirect);
 router.get("/google/callback", googleAuthCallback);
+
+router.get("/github", githubAuthRedirect);
+router.get("/github/callback", githubAuthCallback);
 
 export default router;

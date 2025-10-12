@@ -78,8 +78,10 @@ export function oauthLogin(provider: "google" | "github") {
   window.location.href = `${API_URL}/api/auth/${provider}`;
 }
 
-
 export function googleLoginRedirect() {
   window.location.href = `${API_URL}/api/auth/google`;
 }
 
+export function githubLoginRedirect() {
+  window.location.href = `${API_URL}/api/auth/github`;
+}
