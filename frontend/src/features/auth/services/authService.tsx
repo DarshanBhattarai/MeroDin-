@@ -74,8 +74,12 @@ export async function resendOTP(data: { email: string; type: string }) {
   });
 }
 
-export async function oauthLogin(provider: "google" | "github") {
-  return apiFetch<UserResponse>(`/auth/oauth/${provider}`, {
-    method: "GET",
-  });
+export function oauthLogin(provider: "google" | "github") {
+  window.location.href = `${API_URL}/api/auth/${provider}`;
 }
+
+
+export function googleLoginRedirect() {
+  window.location.href = `${API_URL}/api/auth/google`;
+}
+

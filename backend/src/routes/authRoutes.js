@@ -10,6 +10,7 @@ import {
   resetPassword,
   resendOTP,
 } from "../controllers/authController.js";
+import { googleAuthRedirect, googleAuthCallback } from "../controllers/googleController.js";
 
 const router = express.Router();
 
@@ -21,5 +22,9 @@ router.post("/logout", logout);
 router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password", resetPassword);
 router.post("/resend-otp", resendOTP);
+
+
+router.get("/google", googleAuthRedirect);
+router.get("/google/callback", googleAuthCallback);
 
 export default router;

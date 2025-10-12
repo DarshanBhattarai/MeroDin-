@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import * as authService from "@/features/auth/services/authService";
-import { storage } from "@/utils/storage"; 
+import { storage } from "@/utils/storage";
 
 // --- User type ---
 export type User = {
@@ -14,14 +14,26 @@ export type User = {
 // --- Auth context type ---
 type AuthContextType = {
   user: User;
-  login: (data: { email: string; password: string; rememberMe?: boolean }) => Promise<void>;
-  register: (data: { username?: string; fullName?: string; email: string; password: string }) => Promise<void>;
+  setUser: (user: User) => void;
+  login: (data: {
+    email: string;
+    password: string;
+    rememberMe?: boolean;
+  }) => Promise<void>;
+  register: (data: {
+    username?: string;
+    fullName?: string;
+    email: string;
+    password: string;
+  }) => Promise<void>;
   oauthLogin: (provider: "google" | "github") => Promise<void>;
   logout: () => void;
 };
 
 // --- Create context ---
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
 // --- AuthProvider ---
 type AuthProviderProps = { children: ReactNode };
@@ -29,7 +41,11 @@ type AuthProviderProps = { children: ReactNode };
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User>(() => storage.get<User>("user"));
 
-  const login = async (data: { email: string; password: string; rememberMe?: boolean }) => {
+  const login = async (data: {
+    email: string;
+    password: string;
+    rememberMe?: boolean;
+  }) => {
     try {
       const res = await authService.login(data);
       setUser(res.user);
@@ -40,7 +56,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const register = async (data: { username?: string; fullName?: string; email: string; password: string }) => {
+  const register = async (data: {
+    username?: string;
+    fullName?: string;
+    email: string;
+    password: string;
+  }) => {
     try {
       const res = await authService.register(data);
       setUser(res.user);
@@ -52,14 +73,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const oauthLogin = async (provider: "google" | "github") => {
-    try {
-      const res = await authService.oauthLogin(provider);
-      setUser(res.user);
-      storage.set("user", res.user, "local"); // OAuth login -> localStorage
-    } catch (error) {
-      console.error(`OAuth login failed (${provider}):`, error);
-      throw error;
-    }
+    // Redirect browser to backend OAuth route
+    window.location.href = `http://localhost:5000/api/auth/${provider}`;
   };
 
   const logout = () => {
@@ -69,7 +84,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, oauthLogin, logout }}>
+    <AuthContext.Provider
+      value={{ user, setUser, login, register, oauthLogin, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
