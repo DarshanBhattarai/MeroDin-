@@ -1,15 +1,16 @@
+// src/features/auth/components/otpModel.tsx - FIXED VERSION
 "use client";
 
 import { useState, useRef, useEffect } from "react";
 import Button from "@/app/components/ui/Button";
 import * as authService from "../services/authService";
-import User from "../hooks/useAuth"; // just for reference
 
 type OTPBoxProps = {
   length?: number;
   email: string;
-  onVerified: (otp: string, user?: any) => void; // ✅ Add optional user parameter
+  onVerified: (otp: string, user?: any) => void;
   onClose?: () => void;
+  type?: "EMAIL_VERIFY" | "PASSWORD_RESET"; // ✅ Add type prop
 };
 
 export default function OTPBox({
@@ -17,6 +18,7 @@ export default function OTPBox({
   email,
   onVerified,
   onClose,
+  type = "EMAIL_VERIFY", // ✅ Default to email verification
 }: OTPBoxProps) {
   const [otp, setOTP] = useState(Array(length).fill(""));
   const [loading, setLoading] = useState(false);
@@ -65,42 +67,53 @@ export default function OTPBox({
   };
 
   const handleSubmit = async () => {
-  const otpString = otp.join("");
-  if (otpString.length !== length) {
-    setMessage(`Please enter all ${length} digits`);
-    return;
-  }
+    const otpString = otp.join("");
+    if (otpString.length !== length) {
+      setMessage(`Please enter all ${length} digits`);
+      return;
+    }
 
-  setLoading(true);
-  setMessage(null);
-  try {
-    console.log("🔄 Sending OTP verification request...");
-    const response = await authService.verifyOTP({ email: otpEmail, otp: otpString });
-    console.log("✅ OTP verification successful:", response);
-    
-    setMessage("✅ OTP verified successfully! Redirecting...");
-    
-    // ✅ CRITICAL FIX: Pass the USER OBJECT, not just OTP string
-    // This tells SignupForm that verification is complete
-    setTimeout(() => {
-      onVerified(otpString, response.user); // Pass user object
-    }, 1000);
-    
-  } catch (err: any) {
-    console.error("❌ OTP verification failed:", err);
-    setMessage(err.message || "❌ Verification failed");
-    setOTP(Array(length).fill(""));
-    setTimeout(() => inputsRef.current[0]?.focus(), 100);
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    setMessage(null);
+    try {
+      console.log("🔄 Sending OTP verification request...", { type });
+      
+      if (type === "EMAIL_VERIFY") {
+        // For registration - use verifyOTP endpoint
+        const response = await authService.verifyOTP({ email: otpEmail, otp: otpString });
+        console.log("✅ Email OTP verification successful:", response);
+        setMessage("✅ OTP verified successfully! Redirecting...");
+        
+        setTimeout(() => {
+          onVerified(otpString, response.user);
+        }, 1000);
+      } else {
+        // For password reset - don't verify here, just pass OTP to parent
+        // The parent will handle the password reset with OTP
+        console.log("✅ Password reset OTP received:", otpString);
+        setMessage("✅ OTP received! Resetting password...");
+        
+        setTimeout(() => {
+          onVerified(otpString); // No user object for password reset
+        }, 500);
+      }
+      
+    } catch (err: any) {
+      console.error("❌ OTP verification failed:", err);
+      setMessage(err.message || "❌ Verification failed");
+      setOTP(Array(length).fill(""));
+      setTimeout(() => inputsRef.current[0]?.focus(), 100);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleResend = async () => {
     setLoading(true);
     setMessage(null);
     try {
-      await authService.resendOTP({ email: otpEmail, type: "EMAIL_VERIFY" });
+      // ✅ Use the correct type for resend
+      await authService.resendOTP({ email: otpEmail, type });
       setMessage("✅ OTP resent successfully!");
       setOTP(Array(length).fill(""));
       setTimeout(() => inputsRef.current[0]?.focus(), 50);
@@ -127,6 +140,13 @@ export default function OTPBox({
         <p className="text-gray-400 text-sm mb-4">
           OTP has been sent to <strong>{otpEmail}</strong>
         </p>
+        
+        {/* Show OTP type hint */}
+        {type === "PASSWORD_RESET" && (
+          <p className="text-blue-400 text-sm mb-2">
+            Password Reset OTP
+          </p>
+        )}
 
         <div className="flex justify-center gap-2 mb-4">
           {otp.map((digit, idx) => (

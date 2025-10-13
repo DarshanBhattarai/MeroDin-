@@ -73,6 +73,7 @@ export default function SignupForm() {
       setLoading(false);
     }
   };
+
   return (
     <div className="min-h-[75vh] flex items-center justify-center">
       <Card className="w-full max-w-md p-8">
@@ -149,9 +150,10 @@ export default function SignupForm() {
 
       {showOTP && (
         <OTPBox
-          email={signupEmail} // 🔹 use frozen email
+          email={signupEmail}
           onVerified={handleOTPVerified}
           onClose={() => setShowOTP(false)}
+          type="EMAIL_VERIFY" // ✅ CRITICAL: Add this line
         />
       )}
     </div>

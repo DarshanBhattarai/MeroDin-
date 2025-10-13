@@ -1,3 +1,4 @@
+// src/features/auth/components/LoginForm.tsx - UPDATED
 "use client";
 
 import { useState, FormEvent } from "react";
@@ -12,7 +13,7 @@ export default function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
 
-  const [usernameOrEmail, setUsernameOrEmail] = useState("");
+  const [email, setEmail] = useState(""); // Changed from usernameOrEmail to email
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +25,8 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      await login({ email: usernameOrEmail, password, rememberMe });
-      router.push("/dashboard"); // redirect after successful login
+      await login({ email, password, rememberMe }); // Now using email directly
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -51,10 +52,10 @@ export default function LoginForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            type="text"
-            placeholder="Username or Email"
-            value={usernameOrEmail}
-            onChange={(e) => setUsernameOrEmail(e.target.value)}
+            type="email" // Changed to email type
+            placeholder="Email Address" // Updated placeholder
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
 
@@ -102,7 +103,7 @@ export default function LoginForm() {
         <OAuthButtons />
 
         <p className="mt-6 text-center text-gray-400 text-sm">
-          Don’t have an account?{" "}
+          Don't have an account?{" "}
           <a href="/auth/register" className="text-blue-400 hover:underline">
             Sign Up
           </a>

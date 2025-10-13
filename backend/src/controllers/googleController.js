@@ -1,3 +1,4 @@
+// src/controllers/googleController.js - UPDATED
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
@@ -45,35 +46,53 @@ export const googleAuthCallback = async (req, res) => {
         data: {
           email,
           fullName: name,
-          loginType: "GOOGLE", // Make sure you added loginType in Prisma
+          loginType: "GOOGLE",
           googleId: sub,
           profilePicture: picture,
-          password: "", // Optional: leave blank or null for OAuth users
-          isEmailVerified: true, // Since Google verified
+          password: "",
+          isEmailVerified: true,
         },
       });
-    }
-    if (user && !user.isEmailVerified) {
+    } else if (!user.isEmailVerified) {
       user = await prisma.user.update({
         where: { email },
         data: { isEmailVerified: true },
       });
     }
 
-    // Generate JWT token
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) throw new Error("JWT_SECRET is not defined");
+    // Generate JWT tokens (same as your login flow)
+    const accessToken = jwt.sign(
+      { userId: user.id }, 
+      process.env.JWT_ACCESS_SECRET, 
+      { expiresIn: '15m' }
+    );
+    
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: '30d' }
+    );
 
-    const token = jwt.sign({ id: user.id, email: user.email }, jwtSecret, {
-      expiresIn: "7d",
+    // Set HttpOnly cookies (same as your login flow)
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     // Redirect to frontend success page
-    res.redirect(
-      `http://localhost:3000/auth/success?token=${token}&email=${user.email}&name=${encodeURIComponent(user.fullName)}`
-    );
+    res.redirect(`${process.env.APP_URL}/auth/success`);
+
   } catch (error) {
     console.error("Google OAuth Error:", error);
-    res.status(500).json({ status: "error", message: error.message });
+    res.redirect(`${process.env.APP_URL}/auth/login?error=oauth_failed`);
   }
 };

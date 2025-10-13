@@ -89,6 +89,26 @@ export async function resendOTP(data: {
     body: JSON.stringify(data),
   });
 }
+// Password reset functions
+export async function requestPasswordReset(data: {
+  email: string;
+}): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/auth/request-password-reset", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function resetPassword(data: {
+  email: string;
+  otp: string;
+  newPassword: string;
+}): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
 
 // --- Fetch current user ---
 export async function getCurrentUser(): Promise<UserResponse> {
