@@ -1,22 +1,28 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import OAuthButtons from "./OAuthButtons";
-import OTPBox from "./otpModel" // Import OTP component
+import OTPBox from "./otpModel";
 import useAuth from "../hooks/useAuth";
 
 export default function SignupForm() {
-  const { register } = useAuth();
+  const { register, verifyOTP } = useAuth();
+  const router = useRouter();
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showOTP, setShowOTP] = useState(false); // OTP popup toggle
+  const [showOTP, setShowOTP] = useState(false);
+
+  // 🔹 freeze the email for OTP verification
+  const [signupEmail, setSignupEmail] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,23 +35,44 @@ export default function SignupForm() {
 
     setLoading(true);
     try {
-      // Call backend register (which triggers OTP email)
+      console.log("🔄 Starting registration...");
       await register({ fullName, email, password });
-
-      // Show OTP verification popup
+      console.log("✅ Registration request successful, showing OTP...");
+      setSignupEmail(email);
       setShowOTP(true);
     } catch (err: any) {
+      console.error("❌ Registration failed:", err);
       setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOTPVerified = () => {
-    // Once OTP is verified, redirect to dashboard
-    window.location.href = "/dashboard";
-  };
+  const handleOTPVerified = async (otp: string, verifiedUser?: any) => {
+    setLoading(true);
+    setError(null);
 
+    try {
+      console.log("🔄 Handling OTP verification in SignupForm...");
+
+      if (verifiedUser) {
+        // ✅ OTP was already verified in OTPBox, just redirect
+        console.log("✅ OTP already verified, redirecting...", verifiedUser);
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        console.log("🔄 OTP not verified in OTPBox, verifying now...");
+        await verifyOTP(signupEmail, otp);
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch (err: any) {
+      console.error("❌ OTP verification failed in SignupForm:", err);
+      setError(err.message || "OTP verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="min-h-[75vh] flex items-center justify-center">
       <Card className="w-full max-w-md p-8">
@@ -120,8 +147,13 @@ export default function SignupForm() {
         </p>
       </Card>
 
-      {/* Render OTP popup if signup succeeded */}
-      {showOTP && <OTPBox email={email} onVerified={handleOTPVerified} />}
+      {showOTP && (
+        <OTPBox
+          email={signupEmail} // 🔹 use frozen email
+          onVerified={handleOTPVerified}
+          onClose={() => setShowOTP(false)}
+        />
+      )}
     </div>
   );
 }

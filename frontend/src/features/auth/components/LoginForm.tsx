@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
@@ -9,6 +10,8 @@ import useAuth from "../hooks/useAuth";
 
 export default function LoginForm() {
   const { login } = useAuth();
+  const router = useRouter();
+
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -22,7 +25,7 @@ export default function LoginForm() {
 
     try {
       await login({ email: usernameOrEmail, password, rememberMe });
-      window.location.href = "/dashboard";
+      router.push("/dashboard"); // redirect after successful login
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -34,7 +37,7 @@ export default function LoginForm() {
     <div className="min-h-[75vh] flex items-center justify-center">
       <Card className="w-full max-w-md p-8">
         <h2 className="text-3xl font-bold text-black text-center mb-2">
-          Welcome Back  
+          Welcome Back
         </h2>
         <p className="text-gray-400 text-sm text-center mb-6">
           Log in to continue

@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import Button from "@/app/components/ui/Button";
 import * as authService from "../services/authService";
+import User from "../hooks/useAuth"; // just for reference
 
 type OTPBoxProps = {
   length?: number;
   email: string;
-  onVerified: () => void;
+  onVerified: (otp: string, user?: any) => void; // ✅ Add optional user parameter
   onClose?: () => void;
 };
 
@@ -22,6 +23,9 @@ export default function OTPBox({
   const [message, setMessage] = useState<string | null>(null);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
+  // Freeze email internally
+  const [otpEmail] = useState(email);
+
   useEffect(() => {
     inputsRef.current[0]?.focus();
   }, []);
@@ -31,11 +35,14 @@ export default function OTPBox({
     idx: number
   ) => {
     const val = e.target.value;
-    if (/^\d*$/.test(val)) {
-      const newOTP = [...otp];
-      newOTP[idx] = val;
-      setOTP(newOTP);
-      if (val && idx < length - 1) inputsRef.current[idx + 1]?.focus();
+    if (!/^\d*$/.test(val)) return;
+
+    const newOTP = [...otp];
+    newOTP[idx] = val.slice(-1);
+    setOTP(newOTP);
+
+    if (val && idx < length - 1) {
+      inputsRef.current[idx + 1]?.focus();
     }
   };
 
@@ -43,38 +50,60 @@ export default function OTPBox({
     e: React.KeyboardEvent<HTMLInputElement>,
     idx: number
   ) => {
-    if (e.key === "Backspace" && !otp[idx] && idx > 0) {
+    if (e.key === "Backspace") {
+      e.preventDefault();
       const newOTP = [...otp];
-      newOTP[idx - 1] = "";
-      setOTP(newOTP);
-      inputsRef.current[idx - 1]?.focus();
+      if (otp[idx]) {
+        newOTP[idx] = "";
+        setOTP(newOTP);
+      } else if (idx > 0) {
+        newOTP[idx - 1] = "";
+        setOTP(newOTP);
+        inputsRef.current[idx - 1]?.focus();
+      }
     }
   };
 
   const handleSubmit = async () => {
-    setLoading(true);
-    setMessage(null);
-    try {
-      // Use your authService to verify OTP
-      await authService.verifyOTP({ email, otp: otp.join("") }); // You can add verifyOTP to authService
-      setMessage("✅ OTP verified successfully!");
-      onVerified();
-    } catch (err: any) {
-      setMessage(err.message || "❌ Verification failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const otpString = otp.join("");
+  if (otpString.length !== length) {
+    setMessage(`Please enter all ${length} digits`);
+    return;
+  }
+
+  setLoading(true);
+  setMessage(null);
+  try {
+    console.log("🔄 Sending OTP verification request...");
+    const response = await authService.verifyOTP({ email: otpEmail, otp: otpString });
+    console.log("✅ OTP verification successful:", response);
+    
+    setMessage("✅ OTP verified successfully! Redirecting...");
+    
+    // ✅ CRITICAL FIX: Pass the USER OBJECT, not just OTP string
+    // This tells SignupForm that verification is complete
+    setTimeout(() => {
+      onVerified(otpString, response.user); // Pass user object
+    }, 1000);
+    
+  } catch (err: any) {
+    console.error("❌ OTP verification failed:", err);
+    setMessage(err.message || "❌ Verification failed");
+    setOTP(Array(length).fill(""));
+    setTimeout(() => inputsRef.current[0]?.focus(), 100);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleResend = async () => {
     setLoading(true);
     setMessage(null);
     try {
-      // Use your authService to resend OTP
-      await authService.resendOTP({ email, type: "EMAIL_VERIFY" }); // Add resendOTP in authService
+      await authService.resendOTP({ email: otpEmail, type: "EMAIL_VERIFY" });
       setMessage("✅ OTP resent successfully!");
       setOTP(Array(length).fill(""));
-      inputsRef.current[0]?.focus();
+      setTimeout(() => inputsRef.current[0]?.focus(), 50);
     } catch (err: any) {
       setMessage(err.message || "❌ Resend failed");
     } finally {
@@ -96,7 +125,7 @@ export default function OTPBox({
 
         <h3 className="text-xl font-bold text-white mb-4">Enter OTP</h3>
         <p className="text-gray-400 text-sm mb-4">
-          OTP has been sent to <strong>{email}</strong>
+          OTP has been sent to <strong>{otpEmail}</strong>
         </p>
 
         <div className="flex justify-center gap-2 mb-4">
@@ -113,6 +142,7 @@ export default function OTPBox({
               onChange={(e) => handleChange(e, idx)}
               onKeyDown={(e) => handleKeyDown(e, idx)}
               className="w-12 h-12 text-center text-lg font-bold rounded-lg border border-gray-600 bg-gray-800 text-white focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
             />
           ))}
         </div>

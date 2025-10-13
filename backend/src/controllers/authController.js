@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.COOKIE_SECURE === "true",
+  secure: process.env.NODE_ENV === "production",
   sameSite: "lax",
 };
 
@@ -15,7 +15,9 @@ export const register = async (req, res, next) => {
   try {
     const { email, password, fullName } = req.body;
     await userService.registerUser({ email, password, fullName });
-    res.status(200).json({ message: "OTP sent to your email for verification." });
+    res
+      .status(200)
+      .json({ message: "OTP sent to your email for verification." });
   } catch (err) {
     next(err);
   }
@@ -24,28 +26,43 @@ export const register = async (req, res, next) => {
 export const verifyEmailOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-    const { user, otpLog } = await userService.verifyEmailOTP({ email, otp });
+    const { user } = await userService.verifyEmailOTP({ email, otp });
+
+    // Generate tokens
+    const accessToken = generateAccessToken({ userId: user.id });
+    const refreshToken = generateRefreshToken({ userId: user.id });
+
+    // Set cookies
+    res.cookie("access_token", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 15,
+    });
+    res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
 
     res.status(201).json({
       message: "Email verified successfully. Account created.",
       user: { id: user.id, email: user.email, fullName: user.fullName },
-      otpInfo: {
-        attempts: otpLog.attempts,
-        success: otpLog.success,
-      },
     });
   } catch (err) {
     next(err);
   }
 };
-
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const user = await userService.authenticateUser(email, password);
 
     if (!user.isEmailVerified) {
-      throw new AuthenticationError("Email not verified. Please verify your email first.");
+      throw new AuthenticationError(
+        "Email not verified. Please verify your email first."
+      );
     }
 
     const accessToken = generateAccessToken({ userId: user.id });
@@ -53,8 +70,14 @@ export const login = async (req, res, next) => {
 
     await userService.saveRefreshToken(user.id, refreshToken);
 
-    res.cookie("access_token", accessToken, { ...COOKIE_OPTIONS, maxAge: 1000 * 60 * 15 });
-    res.cookie("refresh_token", refreshToken, { ...COOKIE_OPTIONS, maxAge: 1000 * 60 * 60 * 24 * 30 });
+    res.cookie("access_token", accessToken, {
+      ...COOKIE_OPTIONS,
+      maxAge: 1000 * 60 * 15,
+    });
+    res.cookie("refresh_token", refreshToken, {
+      ...COOKIE_OPTIONS,
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
 
     const { password: _, ...userWithoutPassword } = user;
     res.json({ message: "Login successful", user: userWithoutPassword });
@@ -85,8 +108,14 @@ export const refreshTokens = async (req, res, next) => {
     const newRefresh = generateRefreshToken({ userId: payload.userId });
     await userService.saveRefreshToken(payload.userId, newRefresh);
 
-    res.cookie("access_token", newAccess, { ...COOKIE_OPTIONS, maxAge: 1000 * 60 * 15 });
-    res.cookie("refresh_token", newRefresh, { ...COOKIE_OPTIONS, maxAge: 1000 * 60 * 60 * 24 * 30 });
+    res.cookie("access_token", newAccess, {
+      ...COOKIE_OPTIONS,
+      maxAge: 1000 * 60 * 15,
+    });
+    res.cookie("refresh_token", newRefresh, {
+      ...COOKIE_OPTIONS,
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
 
     res.json({ message: "Tokens refreshed" });
   } catch (err) {
@@ -133,7 +162,11 @@ export const requestPasswordReset = async (req, res, next) => {
 export const resetPassword = async (req, res, next) => {
   try {
     const { email, otp, newPassword } = req.body;
-    const { otpLog } = await userService.verifyOTP(email, otp, "PASSWORD_RESET");
+    const { otpLog } = await userService.verifyOTP(
+      email,
+      otp,
+      "PASSWORD_RESET"
+    );
 
     const user = await userService.getUserByEmail(email);
     if (!user) throw new ValidationError("User not found");
@@ -152,7 +185,8 @@ export const resetPassword = async (req, res, next) => {
 export const resendOTP = async (req, res, next) => {
   try {
     const { email, type } = req.body;
-    if (!email || !type) return res.status(400).json({ message: "Email and type are required" });
+    if (!email || !type)
+      return res.status(400).json({ message: "Email and type are required" });
 
     const user = await userService.getUserByEmail(email);
     if (!user) return res.status(404).json({ message: "User not found" });

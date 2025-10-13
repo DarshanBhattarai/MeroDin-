@@ -32,7 +32,7 @@ const userService = {
       { EX: OTP_EXPIRE_SECONDS }
     );
 
-    // Send email OTP
+    // Send OTP email
     await sendEmail({
       to: email,
       subject: "Verify your email",
@@ -53,9 +53,10 @@ const userService = {
 
     const { fullName, hashedPassword, otpHash } = JSON.parse(cached);
 
+    // MOVE THE VALIDATION BEFORE ANY DATABASE OPERATIONS
     if (hashToken(otp) !== otpHash) throw new ValidationError("Invalid OTP.");
 
-    // Persist user in DB
+    // Only proceed if OTP is valid
     const user = await prisma.user.upsert({
       where: { email },
       create: {
@@ -67,6 +68,7 @@ const userService = {
       update: { fullName, password: hashedPassword, isEmailVerified: true },
     });
 
+    // Delete from Redis after successful verification
     await redisClient.del(`pendingUser:${email}`);
 
     // Log OTP success
@@ -79,7 +81,6 @@ const userService = {
       },
     });
 
-    // ✅ return both user and otpLog
     return { user, otpLog };
   },
 
@@ -93,7 +94,6 @@ const userService = {
     const otp = generateOTP(6);
     const otpHash = hashToken(otp);
 
-    // Store OTP in Redis temporarily
     await redisClient.set(
       `otp:${type}:${user.email}`,
       JSON.stringify({ otpHash, userId: user.id }),
@@ -121,8 +121,8 @@ const userService = {
       throw new ValidationError("OTP expired. Please request a new one.");
 
     const { otpHash } = JSON.parse(cached);
-
     let success = false;
+
     if (hashToken(otp) === otpHash) {
       success = true;
       if (type === "EMAIL_VERIFY" && !user.isEmailVerified) {
@@ -141,9 +141,9 @@ const userService = {
 
     if (!success) throw new ValidationError("Invalid OTP.");
 
-    // ✅ return user + otpLog
     return { user, otpLog };
   },
+
   // ---------------- AUTHENTICATION ----------------
   async authenticateUser(email, password) {
     const user = await prisma.user.findUnique({ where: { email } });

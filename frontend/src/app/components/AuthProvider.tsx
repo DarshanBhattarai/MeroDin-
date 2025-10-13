@@ -1,19 +1,24 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import * as authService from "@/features/auth/services/authService";
-import { storage } from "@/utils/storage";
 
 // --- User type ---
 export type User = {
   username?: string;
   email: string;
-  token: string;
 } | null;
 
 // --- Auth context type ---
 type AuthContextType = {
   user: User;
+  loading: boolean;
   setUser: (user: User) => void;
   login: (data: {
     email: string;
@@ -26,8 +31,9 @@ type AuthContextType = {
     email: string;
     password: string;
   }) => Promise<void>;
-  oauthLogin: (provider: "google" | "github") => Promise<void>;
-  logout: () => void;
+  verifyOTP: (email: string, otp: string) => Promise<void>;
+  oauthLogin: (provider: "google" | "github") => void;
+  logout: () => Promise<void>;
 };
 
 // --- Create context ---
@@ -39,21 +45,27 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 type AuthProviderProps = { children: ReactNode };
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User>(() => storage.get<User>("user"));
+  const [user, setUser] = useState<User>(null);
+  const [loading, setLoading] = useState(true); // loading state for initial fetch
 
-  const login = async (data: {
-    email: string;
-    password: string;
-    rememberMe?: boolean;
-  }) => {
-    try {
-      const res = await authService.login(data);
-      setUser(res.user);
-      storage.set("user", res.user, data.rememberMe ? "local" : "session");
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
-    }
+  // Fetch current user on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authService.getCurrentUser();
+        if (res?.user) setUser(res.user);
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false); // done fetching
+      }
+    })();
+  }, []);
+
+  const login = async (data: { email: string; password: string }) => {
+    await authService.login(data);
+    const res = await authService.getCurrentUser();
+    setUser(res.user || null);
   };
 
   const register = async (data: {
@@ -62,33 +74,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
     email: string;
     password: string;
   }) => {
+    // send OTP only
+    await authService.register(data);
+  };
+
+  const verifyOTP = async (email: string, otp: string) => {
+    setLoading(true); // Set loading to true during verification
     try {
-      const res = await authService.register(data);
-      setUser(res.user);
-      storage.set("user", res.user, "local"); // always localStorage for register
+      const res = await authService.verifyOTP({ email, otp });
+      setUser(res.user || null); // Set user from response
     } catch (error) {
-      console.error("Registration failed:", error);
-      throw error;
+      setUser(null); // Ensure user is null on error
+      throw error; // Re-throw to handle in the component
+    } finally {
+      setLoading(false); // Always set loading to false
     }
   };
 
-  const oauthLogin = async (provider: "google" | "github") => {
-    if (provider === "google") {
-      authService.googleLoginRedirect();
-    } else if (provider === "github") {
-      authService.githubLoginRedirect();
-    }
+  const oauthLogin = (provider: "google" | "github") => {
+    if (provider === "google") authService.googleLoginRedirect();
+    else authService.githubLoginRedirect();
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
-    storage.remove("user", "local");
-    storage.remove("user", "session");
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, setUser, login, register, oauthLogin, logout }}
+      value={{
+        user,
+        loading,
+        setUser,
+        login,
+        register,
+        verifyOTP,
+        oauthLogin,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

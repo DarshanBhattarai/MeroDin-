@@ -6,16 +6,20 @@ export type AuthData = {
   fullName?: string;
   email: string;
   password: string;
-  rememberMe?: boolean;
 };
 
 export type UserResponse = {
   user: {
     username?: string;
     email: string;
-    token: string;
-  };
+  } | null;
   message?: string;
+};
+
+export type OTPRequest = {
+  email: string;
+  otp?: string;
+  type?: string;
 };
 
 // --- Helper for API requests ---
@@ -24,7 +28,7 @@ async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const res = await fetch(`${API_URL}${endpoint}`, {
-    credentials: "include", // keeps cookies/sessions
+    credentials: "include", // sends HttpOnly cookies automatically
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -34,9 +38,8 @@ async function apiFetch<T>(
 
   const data = await res.json().catch(() => ({}));
 
-  if (!res.ok) {
+  if (!res.ok)
     throw new Error(data.message || `Request failed: ${res.statusText}`);
-  }
 
   return data;
 }
@@ -52,7 +55,6 @@ export async function register(data: AuthData): Promise<UserResponse> {
 export async function login(data: {
   email: string;
   password: string;
-  rememberMe?: boolean;
 }): Promise<UserResponse> {
   return apiFetch<UserResponse>("/api/auth/login", {
     method: "POST",
@@ -60,20 +62,45 @@ export async function login(data: {
   });
 }
 
-export async function verifyOTP(data: { email: string; otp: string }) {
-  return apiFetch("/api/auth/verify-email-otp", {
+import { User } from "@/app/components/AuthProvider";
+// --- OTP functions ---
+export async function verifyOTP(data: {
+  email: string;
+  otp: string;
+}): Promise<{ user: User; message: string }> {
+  console.log("🔄 Verifying OTP with data:", data);
+  const response = await apiFetch<{ user: User; message: string }>(
+    "/api/auth/verify-email-otp",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+  console.log("✅ OTP Verification Response:", response);
+  return response;
+}
+
+export async function resendOTP(data: {
+  email: string;
+  type: string;
+}): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/auth/resend-otp", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export async function resendOTP(data: { email: string; type: string }) {
-  return apiFetch("/api/auth/resend-otp", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+// --- Fetch current user ---
+export async function getCurrentUser(): Promise<UserResponse> {
+  return apiFetch<UserResponse>("/api/auth/me", { method: "GET" });
 }
 
+// --- Logout ---
+export async function logout(): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/auth/logout", { method: "POST" });
+}
+
+// --- OAuth login ---
 export function oauthLogin(provider: "google" | "github") {
   window.location.href = `${API_URL}/api/auth/${provider}`;
 }
