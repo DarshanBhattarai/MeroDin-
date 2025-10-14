@@ -16,7 +16,7 @@ export default function LogoutButton() {
     try {
       await logout();
       // Redirect to login page after successful logout
-      router.push("/auth/login");
+      router.push("/landing");
       router.refresh();
     } catch (error) {
       console.error("Logout failed:", error);

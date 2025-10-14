@@ -1,10 +1,11 @@
+// src/app/page.tsx - Clean redirect-only page
 "use client";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/components/AuthProvider"; // Updated import path
+import { useAuth } from "@/app/components/AuthProvider";
 
-export default function HomePage() {
+export default function RootPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -12,12 +13,10 @@ export default function HomePage() {
     if (!loading) {
       if (user) {
         // User is logged in - redirect to dashboard
-        console.log("✅ User is authenticated, redirecting to dashboard");
         router.replace("/dashboard");
       } else {
-        // User is not logged in - redirect to login page
-        console.log("❌ User not authenticated, redirecting to login");
-        router.replace("/auth/login");
+        // User is not logged in - redirect to landing page
+        router.replace("/landing");
       }
     }
   }, [user, loading, router]);
@@ -28,7 +27,7 @@ export default function HomePage() {
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
         <h2 className="text-xl font-semibold text-indigo-900">Welcome to Mero Din</h2>
-        <p className="text-gray-600 mt-2">Checking authentication status...</p>
+        <p className="text-gray-600 mt-2">Getting things ready for you...</p>
       </div>
     </div>
   );
