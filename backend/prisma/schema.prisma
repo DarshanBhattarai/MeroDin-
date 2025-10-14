@@ -8,14 +8,42 @@ datasource db {
 }
 
 enum LoginType {
- EMAIL
- GOOGLE
- GITHUB
+  EMAIL
+  GOOGLE
+  GITHUB
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  fullName         String?
+  role             UserRole  @default(USER)
+  password         String?
+  loginType        LoginType @default(EMAIL)
+  googleId         String?   @unique
+  githubId         String?   @unique
+  profilePicture   String?
+  isEmailVerified  Boolean   @default(false)
+  refreshTokenHash String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("users")
+
+  otpLogs      OtpLog[]
+  diaryEntries DiaryEntry[]
+  adminProfile Admin?
 }
 
 model DiaryEntry {
   id        Int      @id @default(autoincrement())
-  userId    String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
   title     String
   content   String
   mood      String?
@@ -23,30 +51,21 @@ model DiaryEntry {
   updatedAt DateTime @updatedAt
 }
 
-model User {
-    id               Int       @id @default(autoincrement())
-  email            String    @unique
-  fullName         String?
-  password         String?   // optional because OAuth users don't have passwords
-  loginType        LoginType @default(EMAIL)
-  googleId         String?   @unique
-  githubId         String?   @unique
-  profilePicture   String?
-  isEmailVerified  Boolean   @default(false)
-  refreshTokenHash String?   // hashed refresh token
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  // Back-relation for OTP logs
-  otpLogs OtpLog[]
-}
-
 model OtpLog {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
-  otpType   String // EMAIL_VERIFY | PASSWORD_RESET
+  otpType   String
   attempts  Int      @default(0)
   success   Boolean
   createdAt DateTime @default(now())
+}
+
+model Admin {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  user         User     @relation(fields: [userId], references: [id])
+  permissions  String[] @default([])
+  lastLogin    DateTime?
+  createdAt    DateTime @default(now())
 }

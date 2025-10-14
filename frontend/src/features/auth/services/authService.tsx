@@ -132,3 +132,14 @@ export function googleLoginRedirect() {
 export function githubLoginRedirect() {
   window.location.href = `${API_URL}/api/auth/github`;
 }
+
+//-- Admin functions --//
+export async function adminLogin(data: {
+  email: string;
+  password: string;
+}): Promise<UserResponse> {
+  return apiFetch<UserResponse>("/api/admin/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}

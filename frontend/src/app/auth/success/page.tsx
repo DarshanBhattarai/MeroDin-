@@ -24,11 +24,9 @@ export default function SuccessPage() {
           credentials: "include",
         });
 
-        console.log("🔍 Response status:", res.status);
 
         if (res.ok) {
           const data = await res.json();
-          console.log("✅ User data received:", data);
           
           if (data.user) {
             setUser(data.user);

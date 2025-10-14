@@ -11,6 +11,8 @@ import authRoutes from "./routes/authRoutes.js";
 import { errorHandler, requestLogger } from "./middleware/error.middleware.js";
 import { corsOptions } from "./config/cors.js";
 import { authenticate } from "./middleware/auth.middleware.js";
+import adminRoutes  from "./routes/adminRoutes.js"
+
 
 dotenv.config();
 
@@ -43,6 +45,7 @@ app.get("/health", async (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/diary", diaryRoutes);
+app.use("/api/diary", adminRoutes);
 
 app.get("/api/profile", authenticate, (req, res) => {
   const { password: _, ...userWithoutPassword } = req.user;
