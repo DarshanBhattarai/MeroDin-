@@ -62,7 +62,7 @@ export async function login(data: {
   });
 }
 
-import { User } from "@/app/components/AuthProvider";
+import { User } from "@/features/auth/components/AuthProvider";
 // --- OTP functions ---
 export async function verifyOTP(data: {
   email: string;

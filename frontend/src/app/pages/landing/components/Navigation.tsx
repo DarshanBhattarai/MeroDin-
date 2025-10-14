@@ -13,13 +13,13 @@ export default function Navigation() {
           </div>
           <div className="flex gap-4">
             <Link 
-              href="/auth/login" 
+              href="/pages/auth/login" 
               className="text-gray-600 hover:text-indigo-600 font-medium transition-colors"
             >
               Login
             </Link>
             <Link 
-              href="/auth/register" 
+              href="/pages/auth/register" 
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium transition-colors"
             >
               Sign Up

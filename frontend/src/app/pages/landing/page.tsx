@@ -3,7 +3,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/components/AuthProvider";
+import { useAuth } from "@/features/auth/components/AuthProvider";
 import Navigation from "./components/Navigation";
 import HeroSection from "./components/HeroSection";
 import FeaturesSection from "./components/FeaturesSection";
@@ -16,7 +16,7 @@ export default function LandingPage() {
   useEffect(() => {
     // If user is already logged in, redirect to dashboard
     if (!loading && user) {
-      router.replace("/dashboard");
+      router.replace("/pages/dashboard");
     }
   }, [user, loading, router]);
 
@@ -51,7 +51,7 @@ export default function LandingPage() {
       <main>
         <HeroSection />
         <FeaturesSection />
-        
+
         {/* Call to Action Section */}
         <section className="py-20">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -59,17 +59,18 @@ export default function LandingPage() {
               Ready to Start Your Journey?
             </h2>
             <p className="text-xl text-gray-600 mb-8">
-              Join thousands of users who have transformed their daily routine with mindful reflection.
+              Join thousands of users who have transformed their daily routine
+              with mindful reflection.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a 
-                href="/auth/register" 
+              <a
+                href="/auth/register"
                 className="bg-indigo-600 text-white px-8 py-4 rounded-lg hover:bg-indigo-700 font-semibold text-lg transition-colors shadow-lg hover:shadow-xl"
               >
                 Create Your Account
               </a>
-              <a 
-                href="/auth/login" 
+              <a
+                href="/auth/login"
                 className="border-2 border-indigo-600 text-indigo-600 px-8 py-4 rounded-lg hover:bg-indigo-50 font-semibold text-lg transition-colors"
               >
                 Sign In to Continue
