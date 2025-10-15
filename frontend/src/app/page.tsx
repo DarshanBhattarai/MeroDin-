@@ -3,7 +3,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/features/auth/components/AuthProvider";
+import  useAuth  from "@/features/auth/hooks/useAuth"; // Fixed import path
 
 export default function RootPage() {
   const { user, loading } = useAuth();
@@ -12,11 +12,15 @@ export default function RootPage() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        // User is logged in - redirect to dashboard
-        router.replace("pages//dashboard");
+        // Check user role and redirect accordingly
+        if (user.role === 'ADMIN') {
+          router.replace("/admin"); // Admin goes to admin dashboard
+        } else {
+          router.replace("/pages/dashboard"); // Normal user goes to user dashboard
+        }
       } else {
         // User is not logged in - redirect to landing page
-        router.replace("/page/landing");
+        router.replace("/pages/landing");
       }
     }
   }, [user, loading, router]);

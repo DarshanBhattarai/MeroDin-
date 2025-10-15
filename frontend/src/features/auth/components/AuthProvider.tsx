@@ -11,10 +11,14 @@ import * as authService from "@/features/auth/services/authService";
 
 // --- User type ---
 export type User = {
-  username?: string;
+  id: number;
   email: string;
+  fullName?: string;
+  role: "USER" | "ADMIN";
+  isEmailVerified?: boolean;
 } | null;
 
+// --- Auth context type ---
 // --- Auth context type ---
 type AuthContextType = {
   user: User;
@@ -24,7 +28,7 @@ type AuthContextType = {
     email: string;
     password: string;
     rememberMe?: boolean;
-  }) => Promise<void>;
+  }) => Promise<User>; // Changed from Promise<void> to Promise<User>
   register: (data: {
     username?: string;
     fullName?: string;
@@ -35,7 +39,6 @@ type AuthContextType = {
   oauthLogin: (provider: "google" | "github") => void;
   logout: () => Promise<void>;
 };
-
 // --- Create context ---
 export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
@@ -65,7 +68,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (data: { email: string; password: string }) => {
     await authService.login(data);
     const res = await authService.getCurrentUser();
+    const user = res.user || null;
     setUser(res.user || null);
+    return user;
   };
 
   const register = async (data: {

@@ -26,10 +26,10 @@ export default function MainLayout({
                 </a>
               ) : (
                 <>
-                  <a href="/auth/login" className="text-gray-700 hover:text-gray-900">
+                  <a href="/pages/auth/login" className="text-gray-700 hover:text-gray-900">
                     Login
                   </a>
-                  <a href="/auth/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                  <a href="/pages/auth/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                     Sign Up
                   </a>
                 </>

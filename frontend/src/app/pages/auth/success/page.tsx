@@ -31,7 +31,7 @@ export default function SuccessPage() {
           if (data.user) {
             setUser(data.user);
             setTimeout(() => {
-              router.replace("/dashboard");
+              router.replace("/pages/dashboard");
             }, 1000);
           } else {
             throw new Error("No user data in response");
@@ -46,7 +46,7 @@ export default function SuccessPage() {
         // Fallback: Try to redirect to dashboard anyway
         setTimeout(() => {
           console.log("🔄 Fallback: Redirecting to dashboard");
-          router.replace("/dashboard");
+          router.replace("/pages/dashboard");
         }, 2000);
       } finally {
         setLoading(false);
@@ -78,7 +78,7 @@ export default function SuccessPage() {
           Redirecting you to dashboard...
         </p>
         <button
-          onClick={() => router.replace("/dashboard")}
+          onClick={() => router.replace("/pages/dashboard")}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
         >
           Go to Dashboard Now

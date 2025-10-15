@@ -70,7 +70,7 @@ export default function LandingPage() {
                 Create Your Account
               </a>
               <a
-                href="/auth/login"
+                href="/pages/auth/login"
                 className="border-2 border-indigo-600 text-indigo-600 px-8 py-4 rounded-lg hover:bg-indigo-50 font-semibold text-lg transition-colors"
               >
                 Sign In to Continue

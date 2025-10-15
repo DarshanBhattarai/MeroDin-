@@ -89,10 +89,10 @@ export const googleAuthCallback = async (req, res) => {
     });
 
     // Redirect to frontend success page
-    res.redirect(`${process.env.APP_URL}/auth/success`);
+    res.redirect(`${process.env.APP_URL}/pages/auth/success`);
 
   } catch (error) {
     console.error("Google OAuth Error:", error);
-    res.redirect(`${process.env.APP_URL}/auth/login?error=oauth_failed`);
+    res.redirect(`${process.env.APP_URL}/pages/auth/login?error=oauth_failed`);
   }
 };

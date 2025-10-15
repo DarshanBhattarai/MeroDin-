@@ -5,7 +5,9 @@ import { AuthenticationError } from "../utils/errors.js";
 
 export const authenticate = async (req, res, next) => {
   try {
-    const token = req.cookies?.access_token || (req.headers.authorization && req.headers.authorization.split(" ")[1]);
+    const token =
+      req.cookies?.access_token ||
+      (req.headers.authorization && req.headers.authorization.split(" ")[1]);
     if (!token) throw new AuthenticationError("No access token");
 
     let payload;
@@ -15,7 +17,16 @@ export const authenticate = async (req, res, next) => {
       throw new AuthenticationError("Invalid or expired token");
     }
 
-    const user = await prisma.user.findUnique({ where: { id: Number(payload.userId) } });
+    const user = await prisma.user.findUnique({
+      where: { id: Number(payload.userId) },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        isEmailVerified: true,
+      },
+    });
     if (!user) throw new AuthenticationError("User not found");
 
     req.user = user;

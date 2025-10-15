@@ -82,7 +82,7 @@ export default function ResetPasswordForm() {
             Your password has been reset successfully. You can now log in with your new password.
           </p>
           <Button
-            onClick={() => router.push("/auth/login")}
+            onClick={() => router.push("/pages/auth/login")}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
             Go to Login
@@ -147,7 +147,7 @@ export default function ResetPasswordForm() {
 
         <div className="mt-6 text-center">
           <button
-            onClick={() => router.push("/auth/login")}
+            onClick={() => router.push("/pages/auth/login")}
             className="text-blue-400 hover:underline text-sm"
           >
             Back to Login

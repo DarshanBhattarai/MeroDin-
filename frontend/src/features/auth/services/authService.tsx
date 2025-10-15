@@ -10,12 +10,14 @@ export type AuthData = {
 
 export type UserResponse = {
   user: {
-    username?: string;
+    id: number;
     email: string;
+    fullName?: string;
+    role: "USER" | "ADMIN";
+    isEmailVerified?: boolean;
   } | null;
   message?: string;
 };
-
 export type OTPRequest = {
   email: string;
   otp?: string;
@@ -62,14 +64,14 @@ export async function login(data: {
   });
 }
 
-import { User } from "@/features/auth/components/AuthProvider";
+
 // --- OTP functions ---
 export async function verifyOTP(data: {
   email: string;
   otp: string;
-}): Promise<{ user: User; message: string }> {
+}): Promise<{ user: UserResponse['user']; message: string }> {
   console.log("🔄 Verifying OTP with data:", data);
-  const response = await apiFetch<{ user: User; message: string }>(
+  const response = await apiFetch<{ user: UserResponse['user']; message: string }>(
     "/api/auth/verify-email-otp",
     {
       method: "POST",
@@ -79,7 +81,6 @@ export async function verifyOTP(data: {
   console.log("✅ OTP Verification Response:", response);
   return response;
 }
-
 export async function resendOTP(data: {
   email: string;
   type: string;

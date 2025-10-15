@@ -25,15 +25,20 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      await login({ email, password, rememberMe }); // Now using email directly
-      router.push("/dashboard");
+      const user = await login({ email, password, rememberMe });
+
+      // Redirect based on role
+      if (user?.role === "ADMIN") {
+        router.push("/pages/admin");
+      } else {
+        router.push("/pages/dashboard");
+      }
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="min-h-[75vh] flex items-center justify-center">
       <Card className="w-full max-w-md p-8">
@@ -78,7 +83,7 @@ export default function LoginForm() {
               Remember me
             </label>
             <a
-              href="/auth/forgot-password"
+              href="/pages/auth/forgot-password"
               className="text-blue-400 hover:underline"
             >
               Forgot password?
@@ -104,7 +109,10 @@ export default function LoginForm() {
 
         <p className="mt-6 text-center text-gray-400 text-sm">
           Don't have an account?{" "}
-          <a href="/auth/register" className="text-blue-400 hover:underline">
+          <a
+            href="/pages/auth/register"
+            className="text-blue-400 hover:underline"
+          >
             Sign Up
           </a>
         </p>

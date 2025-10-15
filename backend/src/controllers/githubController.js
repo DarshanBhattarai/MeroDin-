@@ -113,12 +113,12 @@ export const githubAuthCallback = async (req, res) => {
     console.log("✅ Cookies set for GitHub user");
     
     // 7. Redirect to frontend success page
-    const redirectUrl = "http://localhost:3000/auth/success";
+    const redirectUrl = "http://localhost:3000/pages/auth/success";
     console.log("🔄 Redirecting GitHub user to:", redirectUrl);
     res.redirect(redirectUrl);
 
   } catch (error) {
     console.error("❌ GitHub OAuth Error:", error);
-    res.redirect("http://localhost:3000/auth/login?error=github_oauth_failed");
+    res.redirect("http://localhost:3000/pages/auth/login?error=github_oauth_failed");
   }
 };

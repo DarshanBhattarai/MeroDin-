@@ -6,10 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navigation = [
-  { name: "Dashboard", href: "/admin", icon: "📊" },
-  { name: "User Management", href: "/admin/users", icon: "👥" },
-  { name: "System Logs", href: "/admin/logs", icon: "📋" },
-  { name: "Settings", href: "/admin/settings", icon: "⚙️" },
+  { name: "Dashboard", href: "/pages/admin", icon: "📊" },
+  { name: "User Management", href: "/pages/admin/users", icon: "👥" },
+  { name: "System Logs", href: "/pages/admin/logs", icon: "📋" },
+  { name: "Settings", href: "/pages/admin/settings", icon: "⚙️" },
 ];
 
 export default function AdminSidebar() {
