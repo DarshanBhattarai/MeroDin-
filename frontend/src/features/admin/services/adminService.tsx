@@ -35,6 +35,7 @@ export async function getAdminStats(): Promise<AdminStatsResponse> {
 }
 
 // System Logs
+// Update the function signature to use type
 export async function getSystemLogs(params: { 
   page?: number; 
   limit?: number; 
@@ -50,7 +51,6 @@ export async function getSystemLogs(params: {
   const endpoint = `/api/admin/logs?${queryParams.toString()}`;
   return apiFetch<SystemLogsResponse>(endpoint);
 }
-
 // User Management
 export async function getUsers(params: {
   page?: number;

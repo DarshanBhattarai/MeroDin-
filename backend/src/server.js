@@ -45,7 +45,7 @@ app.get("/health", async (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/diary", diaryRoutes);
-app.use("/api/diary", adminRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/api/profile", authenticate, (req, res) => {
   const { password: _, ...userWithoutPassword } = req.user;

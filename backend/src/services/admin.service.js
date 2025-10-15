@@ -1,26 +1,34 @@
 // src/services/admin.service.js
 import prisma from "../lib/prisma.js";
 import { comparePassword } from "../utils/auth.js";
-import { AuthenticationError, ValidationError, NotFoundError } from "../utils/errors.js";
+import {
+  AuthenticationError,
+  ValidationError,
+  NotFoundError,
+} from "../utils/errors.js";
 
 export const adminService = {
   // --- Authentication ---
   async authenticateAdmin(email, password) {
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { adminProfile: true }
+      include: { adminProfile: true },
     });
 
     if (!user) {
       throw new AuthenticationError("Invalid credentials");
     }
 
-    if (user.role !== 'ADMIN') {
-      throw new AuthenticationError("Access denied. Admin privileges required.");
+    if (user.role !== "ADMIN") {
+      throw new AuthenticationError(
+        "Access denied. Admin privileges required."
+      );
     }
 
     if (!user.isEmailVerified) {
-      throw new AuthenticationError("Please verify your email before logging in.");
+      throw new AuthenticationError(
+        "Please verify your email before logging in."
+      );
     }
 
     const validPassword = await comparePassword(password, user.password);
@@ -32,7 +40,7 @@ export const adminService = {
     if (user.adminProfile) {
       await prisma.admin.update({
         where: { userId: user.id },
-        data: { lastLogin: new Date() }
+        data: { lastLogin: new Date() },
       });
     }
 
@@ -45,47 +53,49 @@ export const adminService = {
     const [
       totalUsers,
       totalAdmins,
-      activeUsersToday,
+      activeUsersToday, // This needs to be fixed
       newRegistrationsToday,
       totalDiaryEntries,
       diaryEntriesToday,
       verifiedUsers,
-      oauthUsers
+      oauthUsers,
     ] = await Promise.all([
       prisma.user.count(),
-      prisma.user.count({ where: { role: 'ADMIN' } }),
-      prisma.diaryEntry.count({
-        where: {
-          createdAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0))
-          }
-        },
-        distinct: ['userId']
-      }),
+      prisma.user.count({ where: { role: "ADMIN" } }),
+
+      // FIXED: Count distinct users with diary entries today
+      prisma.diaryEntry
+        .groupBy({
+          by: ["userId"],
+          where: {
+            createdAt: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            },
+          },
+        })
+        .then((results) => results.length),
+
       prisma.user.count({
         where: {
           createdAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0))
-          }
-        }
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          },
+        },
       }),
       prisma.diaryEntry.count(),
       prisma.diaryEntry.count({
         where: {
           createdAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0))
-          }
-        }
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          },
+        },
       }),
       prisma.user.count({ where: { isEmailVerified: true } }),
-      prisma.user.count({ 
-        where: { 
-          OR: [
-            { loginType: 'GOOGLE' },
-            { loginType: 'GITHUB' }
-          ]
-        }
-      })
+      prisma.user.count({
+        where: {
+          OR: [{ loginType: "GOOGLE" }, { loginType: "GITHUB" }],
+        },
+      }),
     ]);
 
     return {
@@ -98,24 +108,24 @@ export const adminService = {
       verifiedUsers,
       oauthUsers,
       emailUsers: totalUsers - oauthUsers,
-      systemHealth: 'operational',
-      database: 'connected',
-      lastUpdated: new Date()
+      systemHealth: "operational",
+      database: "connected",
+      lastUpdated: new Date(),
     };
   },
 
   // --- User Management ---
-  async getUsers({ page = 1, limit = 20, search = '', role = '' } = {}) {
+  async getUsers({ page = 1, limit = 20, search = "", role = "" } = {}) {
     const skip = (page - 1) * limit;
 
     const where = {
       ...(search && {
         OR: [
-          { email: { contains: search, mode: 'insensitive' } },
-          { fullName: { contains: search, mode: 'insensitive' } }
-        ]
+          { email: { contains: search, mode: "insensitive" } },
+          { fullName: { contains: search, mode: "insensitive" } },
+        ],
       }),
-      ...(role && { role })
+      ...(role && { role }),
     };
 
     const [users, totalCount] = await Promise.all([
@@ -133,21 +143,21 @@ export const adminService = {
           adminProfile: {
             select: {
               lastLogin: true,
-              permissions: true
-            }
+              permissions: true,
+            },
           },
           _count: {
             select: {
               diaryEntries: true,
-              otpLogs: true
-            }
-          }
+              otpLogs: true,
+            },
+          },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
-        take: parseInt(limit)
+        take: parseInt(limit),
       }),
-      prisma.user.count({ where })
+      prisma.user.count({ where }),
     ]);
 
     return {
@@ -157,8 +167,8 @@ export const adminService = {
         totalPages: Math.ceil(totalCount / limit),
         totalCount,
         hasNext: page * limit < totalCount,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     };
   },
 
@@ -179,36 +189,36 @@ export const adminService = {
           select: {
             lastLogin: true,
             permissions: true,
-            createdAt: true
-          }
+            createdAt: true,
+          },
         },
         diaryEntries: {
           select: {
             id: true,
             title: true,
             mood: true,
-            createdAt: true
+            createdAt: true,
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10
+          orderBy: { createdAt: "desc" },
+          take: 10,
         },
         otpLogs: {
           select: {
             id: true,
             otpType: true,
             success: true,
-            createdAt: true
+            createdAt: true,
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10
+          orderBy: { createdAt: "desc" },
+          take: 10,
         },
         _count: {
           select: {
             diaryEntries: true,
-            otpLogs: true
-          }
-        }
-      }
+            otpLogs: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -219,12 +229,12 @@ export const adminService = {
   },
 
   async updateUserRole(userId, newRole, currentAdminId) {
-    if (!['USER', 'ADMIN'].includes(newRole)) {
+    if (!["USER", "ADMIN"].includes(newRole)) {
       throw new ValidationError("Invalid role. Must be USER or ADMIN");
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(userId) }
+      where: { id: parseInt(userId) },
     });
 
     if (!user) {
@@ -232,16 +242,16 @@ export const adminService = {
     }
 
     // Prevent self-demotion
-    if (parseInt(userId) === currentAdminId && newRole === 'USER') {
+    if (parseInt(userId) === currentAdminId && newRole === "USER") {
       throw new ValidationError("Cannot demote yourself");
     }
 
     // Prevent demoting the last admin
-    if (newRole === 'USER' && user.role === 'ADMIN') {
-      const adminCount = await prisma.user.count({ 
-        where: { role: 'ADMIN' } 
+    if (newRole === "USER" && user.role === "ADMIN") {
+      const adminCount = await prisma.user.count({
+        where: { role: "ADMIN" },
       });
-      
+
       if (adminCount <= 1) {
         throw new ValidationError("Cannot demote the last admin user");
       }
@@ -255,23 +265,23 @@ export const adminService = {
         email: true,
         fullName: true,
         role: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
     // Manage admin profile based on role
-    if (newRole === 'ADMIN') {
+    if (newRole === "ADMIN") {
       await prisma.admin.upsert({
         where: { userId: parseInt(userId) },
         update: {},
         create: {
           userId: parseInt(userId),
-          permissions: ['BASIC']
-        }
+          permissions: ["BASIC"],
+        },
       });
     } else {
       await prisma.admin.deleteMany({
-        where: { userId: parseInt(userId) }
+        where: { userId: parseInt(userId) },
       });
     }
 
@@ -280,7 +290,7 @@ export const adminService = {
 
   async deleteUser(userId, currentAdminId) {
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(userId) }
+      where: { id: parseInt(userId) },
     });
 
     if (!user) {
@@ -293,11 +303,11 @@ export const adminService = {
     }
 
     // Prevent deleting the last admin
-    if (user.role === 'ADMIN') {
-      const adminCount = await prisma.user.count({ 
-        where: { role: 'ADMIN' } 
+    if (user.role === "ADMIN") {
+      const adminCount = await prisma.user.count({
+        where: { role: "ADMIN" },
       });
-      
+
       if (adminCount <= 1) {
         throw new ValidationError("Cannot delete the last admin user");
       }
@@ -315,12 +325,12 @@ export const adminService = {
   },
 
   // --- System Logs ---
-  async getSystemLogs({ page = 1, limit = 50, type = '', userId = '' } = {}) {
+  async getSystemLogs({ page = 1, limit = 50, type = "", userId = "" } = {}) {
     const skip = (page - 1) * limit;
 
     const where = {
       ...(type && { otpType: type }),
-      ...(userId && { userId: parseInt(userId) })
+      ...(userId && { userId: parseInt(userId) }),
     };
 
     const [logs, totalCount] = await Promise.all([
@@ -331,15 +341,15 @@ export const adminService = {
             select: {
               id: true,
               email: true,
-              fullName: true
-            }
-          }
+              fullName: true,
+            },
+          },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
-        take: parseInt(limit)
+        take: parseInt(limit),
       }),
-      prisma.otpLog.count({ where })
+      prisma.otpLog.count({ where }),
     ]);
 
     return {
@@ -349,15 +359,15 @@ export const adminService = {
         totalPages: Math.ceil(totalCount / limit),
         totalCount,
         hasNext: page * limit < totalCount,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     };
   },
 
   // --- Admin Management ---
   async getAdmins() {
     const admins = await prisma.user.findMany({
-      where: { role: 'ADMIN' },
+      where: { role: "ADMIN" },
       select: {
         id: true,
         email: true,
@@ -367,16 +377,16 @@ export const adminService = {
         adminProfile: {
           select: {
             lastLogin: true,
-            permissions: true
-          }
+            permissions: true,
+          },
         },
         _count: {
           select: {
-            diaryEntries: true
-          }
-        }
+            diaryEntries: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: "asc" },
     });
 
     return admins;
@@ -385,10 +395,10 @@ export const adminService = {
   async updateAdminPermissions(userId, permissions) {
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
-      include: { adminProfile: true }
+      include: { adminProfile: true },
     });
 
-    if (!user || user.role !== 'ADMIN') {
+    if (!user || user.role !== "ADMIN") {
       throw new NotFoundError("Admin user not found");
     }
 
@@ -404,14 +414,14 @@ export const adminService = {
           select: {
             id: true,
             email: true,
-            fullName: true
-          }
-        }
-      }
+            fullName: true,
+          },
+        },
+      },
     });
 
     return updatedAdmin;
-  }
+  },
 };
 
 export default adminService;

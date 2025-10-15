@@ -23,6 +23,7 @@ export type SystemLog = {
   otpType: string;
   success: boolean;
   createdAt: string;
+  attempts: string;
   user: {
     id: number;
     email: string;
