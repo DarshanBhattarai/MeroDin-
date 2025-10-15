@@ -10,7 +10,7 @@ type OTPBoxProps = {
   email: string;
   onVerified: (otp: string, user?: any) => void;
   onClose?: () => void;
-  type?: "EMAIL_VERIFY" | "PASSWORD_RESET"; // ✅ Add type prop
+  type?: "EMAIL_VERIFY" | "PASSWORD_RESET"; 
 };
 
 export default function OTPBox({
@@ -18,7 +18,7 @@ export default function OTPBox({
   email,
   onVerified,
   onClose,
-  type = "EMAIL_VERIFY", // ✅ Default to email verification
+  type = "EMAIL_VERIFY",
 }: OTPBoxProps) {
   const [otp, setOTP] = useState(Array(length).fill(""));
   const [loading, setLoading] = useState(false);

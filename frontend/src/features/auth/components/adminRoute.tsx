@@ -12,8 +12,14 @@ export default function AdminRoute({ children }: AdminRouteProps) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user?.role !== 'ADMIN') {
-      router.replace("/pages/dashboard"); // Redirect non-admins to regular dashboard
+    if (!loading) {
+      if (!user) {
+        // No user logged in - redirect to login
+        router.replace("/pages/auth/login");
+      } else if (user.role !== "ADMIN") {
+        // User is not admin - redirect to regular dashboard
+        router.replace("/pages/dashboard");
+      }
     }
   }, [user, loading, router]);
 
@@ -25,7 +31,7 @@ export default function AdminRoute({ children }: AdminRouteProps) {
     );
   }
 
-  if (user?.role !== 'ADMIN') {
+  if (user?.role !== "ADMIN") {
     return null; // or a "Access Denied" message
   }
 

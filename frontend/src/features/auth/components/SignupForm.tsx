@@ -58,12 +58,12 @@ export default function SignupForm() {
       if (verifiedUser) {
         // ✅ OTP was already verified in OTPBox, just redirect
         console.log("✅ OTP already verified, redirecting...", verifiedUser);
-        router.push("/dashboard");
+        router.push("/pages/dashboard");
         router.refresh();
       } else {
         console.log("🔄 OTP not verified in OTPBox, verifying now...");
         await verifyOTP(signupEmail, otp);
-        router.push("/dashboard");
+        router.push("/pages/dashboard");
         router.refresh();
       }
     } catch (err: any) {

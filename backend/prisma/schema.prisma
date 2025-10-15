@@ -41,14 +41,33 @@ model User {
 }
 
 model DiaryEntry {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  title     String
-  content   String
-  mood      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  user            User      @relation(fields: [userId], references: [id])
+
+  title           String
+  contentRaw      String     // user’s original writing
+  contentAI       String?    // AI-enhanced version (optional)
+  mood            String?    // e.g., Happy, Sad, Calm, Motivated, etc.
+  moodIntensity   Int?       // scale 1–10 (optional)
+  diaryType       DiaryType  @default(NORMAL)
+  tags            String[]   // e.g., ["work", "friends", "travel"]
+  mediaUrls       String[]   // images or video links (Cloudinary or similar)
+  location        String?    // optional (city, or general area)
+  isLocked        Boolean    @default(false)
+  passwordHint    String?    // optional hint for locked entries
+  aiSummary       String?    // auto-generated summary for flashbacks
+  aiKeywords      String[]   // extracted key topics for future search
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+enum DiaryType {
+  NORMAL
+  SECRET
+  MEMORY
+  QUICK_NOTE
 }
 
 model OtpLog {
