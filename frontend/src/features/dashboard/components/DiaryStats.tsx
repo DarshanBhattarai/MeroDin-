@@ -3,32 +3,35 @@ import { BookOpen, Lock, Zap, BarChart3 } from 'lucide-react';
 import { DiaryStats as DiaryStatsType } from '@/types/diary';
 
 type DiaryStatsProps = {
-  stats: DiaryStatsType;
+  stats: DiaryStatsType | null;
 };
 
 export const DiaryStats: React.FC<DiaryStatsProps> = ({ stats }) => {
+  // Safe data access with fallbacks
+  const secretEntriesCount = stats?.entriesByType?.find(e => e.diaryType === 'SECRET')?._count.id || 0;
+  
   const statCards = [
     {
       label: 'Total Entries',
-      value: stats.totalEntries,
+      value: stats?.totalEntries || 0,
       icon: BookOpen,
       color: 'blue'
     },
     {
       label: 'This Month',
-      value: stats.recentActivity,
+      value: stats?.recentActivity || 0,
       icon: Zap,
       color: 'green'
     },
     {
       label: 'Secret Entries',
-      value: stats.entriesByType.find(e => e.diaryType === 'SECRET')?._count.id || 0,
+      value: secretEntriesCount,
       icon: Lock,
       color: 'red'
     },
     {
       label: 'Avg Mood',
-      value: stats.averageMoodIntensity ? `${stats.averageMoodIntensity.toFixed(1)}/10` : 'N/A',
+      value: stats?.averageMoodIntensity ? `${stats.averageMoodIntensity.toFixed(1)}/10` : 'N/A',
       icon: BarChart3,
       color: 'purple'
     }

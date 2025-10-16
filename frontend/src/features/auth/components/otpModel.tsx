@@ -10,7 +10,7 @@ type OTPBoxProps = {
   email: string;
   onVerified: (otp: string, user?: any) => void;
   onClose?: () => void;
-  type?: "EMAIL_VERIFY" | "PASSWORD_RESET"; 
+  type?: "EMAIL_VERIFY" | "PASSWORD_RESET";
 };
 
 export default function OTPBox({
@@ -77,13 +77,16 @@ export default function OTPBox({
     setMessage(null);
     try {
       console.log("🔄 Sending OTP verification request...", { type });
-      
+
       if (type === "EMAIL_VERIFY") {
         // For registration - use verifyOTP endpoint
-        const response = await authService.verifyOTP({ email: otpEmail, otp: otpString });
+        const response = await authService.verifyOTP({
+          email: otpEmail,
+          otp: otpString,
+        });
         console.log("✅ Email OTP verification successful:", response);
         setMessage("✅ OTP verified successfully! Redirecting...");
-        
+
         setTimeout(() => {
           onVerified(otpString, response.user);
         }, 1000);
@@ -92,12 +95,11 @@ export default function OTPBox({
         // The parent will handle the password reset with OTP
         console.log("✅ Password reset OTP received:", otpString);
         setMessage("✅ OTP received! Resetting password...");
-        
+
         setTimeout(() => {
           onVerified(otpString); // No user object for password reset
         }, 500);
       }
-      
     } catch (err: any) {
       console.error("❌ OTP verification failed:", err);
       setMessage(err.message || "❌ Verification failed");
@@ -140,12 +142,10 @@ export default function OTPBox({
         <p className="text-gray-400 text-sm mb-4">
           OTP has been sent to <strong>{otpEmail}</strong>
         </p>
-        
+
         {/* Show OTP type hint */}
         {type === "PASSWORD_RESET" && (
-          <p className="text-blue-400 text-sm mb-2">
-            Password Reset OTP
-          </p>
+          <p className="text-blue-400 text-sm mb-2">Password Reset OTP</p>
         )}
 
         <div className="flex justify-center gap-2 mb-4">

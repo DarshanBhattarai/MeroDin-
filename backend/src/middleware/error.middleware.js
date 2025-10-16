@@ -1,4 +1,4 @@
-import logger from "../utils/logger.js";
+import logger from "../lib/logger.js";
 
 export const requestLogger = (req, res, next) => {
   logger.info("Incoming Request", {

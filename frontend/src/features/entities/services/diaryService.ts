@@ -1,106 +1,102 @@
-import { DiaryEntry, CreateDiaryEntryInput, UpdateDiaryEntryInput, DiaryStats, DiaryFilters } from '@/types/diary';
+import {
+  DiaryEntry,
+  CreateDiaryEntryInput,
+  UpdateDiaryEntryInput,
+  DiaryStats,
+  DiaryFilters,
+} from "@/types/diary";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-class DiaryService {
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const token = localStorage.getItem('token');
-    
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      ...options,
-    };
+type RequestOptions = {
+  method?: string;
+  body?: string;
+  headers?: Record<string, string>;
+};
 
-    const response = await fetch(`${API_BASE_URL}/diary${endpoint}`, config);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`);
+const request = async (endpoint: string, options: RequestOptions = {}) => {
+  const config = {
+    method: options.method || "GET",
+    credentials: "include" as RequestCredentials, // send cookies
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...(options.body && { body: options.body }),
+  };
+
+  const response = await fetch(`${API_BASE_URL}/diary${endpoint}`, config);
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`API error: ${response.status} ${response.statusText} - ${text}`);
+  }
+
+  const data = await response.json();
+  return data;
+};
+
+
+export const createEntry = async (data: CreateDiaryEntryInput): Promise<DiaryEntry> => {
+  return request("/entries", { method: "POST", body: JSON.stringify(data) });
+};
+
+export const getEntries = async (filters: DiaryFilters = {}): Promise<{ entries: DiaryEntry[]; pagination?: any }> => {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      params.append(key, value.toString());
     }
+  });
+  const response = await request(`/entries?${params.toString()}`);
+  return { entries: response.entries || [], pagination: response.pagination };
+};
 
-    return response.json();
-  }
+export const getMyEntries = async (filters: { diaryType?: string; mood?: string } = {}): Promise<DiaryEntry[]> => {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.append(key, value);
+  });
+  const response = await request(`/entries/my?${params.toString()}`);
+  return response.entries || []; // Safe fallback
+};
 
-  // Create new diary entry
-  async createEntry(data: CreateDiaryEntryInput): Promise<DiaryEntry> {
-    return this.request('/entries', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+export const getEntryById = async (id: number): Promise<DiaryEntry> => {
+  const response = await request(`/entries/${id}`);
+  return response.entry || response; // fallback if API wraps data differently
+};
 
-  // Get all diary entries with filters
-  async getEntries(filters: DiaryFilters = {}): Promise<{
-    entries: DiaryEntry[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      pages: number;
-    };
-  }> {
-    const queryParams = new URLSearchParams();
-    
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        queryParams.append(key, value.toString());
-      }
-    });
+export const updateEntry = async (id: number, data: UpdateDiaryEntryInput): Promise<DiaryEntry> => {
+  const response = await request(`/entries/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  return response.entry || response;
+};
 
-    return this.request(`/entries?${queryParams.toString()}`);
-  }
+export const deleteEntry = async (id: number): Promise<{ message: string }> => {
+  const response = await request(`/entries/${id}`, { method: "DELETE" });
+  return response;
+};
 
-  // Get user's personal diary entries
-  async getMyEntries(filters: { diaryType?: string; mood?: string } = {}): Promise<DiaryEntry[]> {
-    const queryParams = new URLSearchParams();
-    
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) queryParams.append(key, value);
-    });
+export const getAnalytics = async (): Promise<DiaryStats> => {
+  const response = await request("/entries/analytics");
+  return response.stats || response; // fallback
+};
 
-    return this.request(`/entries/my?${queryParams.toString()}`);
-  }
+export const searchEntries = async (query: string, filters: { diaryType?: string; mood?: string } = {}): Promise<{ entries: DiaryEntry[]; pagination?: any }> => {
+  const params = new URLSearchParams({ query });
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.append(key, value);
+  });
+  const response = await request(`/entries/search?${params.toString()}`);
+  return { entries: response.entries || [], pagination: response.pagination };
+};
 
-  // Get single diary entry
-  async getEntryById(id: number): Promise<DiaryEntry> {
-    return this.request(`/entries/${id}`);
-  }
-
-  // Update diary entry
-  async updateEntry(id: number, data: UpdateDiaryEntryInput): Promise<DiaryEntry> {
-    return this.request(`/entries/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Delete diary entry
-  async deleteEntry(id: number): Promise<{ message: string }> {
-    return this.request(`/entries/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Get diary analytics
-  async getAnalytics(): Promise<DiaryStats> {
-    return this.request('/entries/analytics');
-  }
-
-  // Search diary entries
-  async searchEntries(query: string, filters: { diaryType?: string; mood?: string } = {}): Promise<{
-    entries: DiaryEntry[];
-    pagination: any;
-  }> {
-    const queryParams = new URLSearchParams({ query });
-    
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) queryParams.append(key, value);
-    });
-
-    return this.request(`/entries/search?${queryParams.toString()}`);
-  }
-}
-
-export const diaryService = new DiaryService();
+export const diaryService = {
+  createEntry,
+  getEntries,
+  getMyEntries,
+  getEntryById,
+  updateEntry,
+  deleteEntry,
+  getAnalytics,
+  searchEntries,
+};

@@ -8,6 +8,7 @@ import Card from "@/app/components/ui/Card";
 import OAuthButtons from "./OAuthButtons";
 import OTPBox from "./otpModel";
 import useAuth from "../hooks/useAuth";
+import Link from "next/link";
 
 export default function SignupForm() {
   const { register, verifyOTP } = useAuth();
@@ -66,9 +67,8 @@ export default function SignupForm() {
         router.push("/pages/dashboard");
         router.refresh();
       }
-    } catch (err: any) {
-      console.error("❌ OTP verification failed in SignupForm:", err);
-      setError(err.message || "OTP verification failed");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -142,9 +142,9 @@ export default function SignupForm() {
 
         <p className="mt-6 text-center text-gray-400 text-sm">
           Already have an account?{" "}
-          <a href="/pages/auth/login" className="text-blue-400 hover:underline">
+          <Link href="/auth/login" className="text-blue-400 hover:underline">
             Log In
-          </a>
+          </Link>
         </p>
       </Card>
 

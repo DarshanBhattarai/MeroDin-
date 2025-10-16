@@ -65,14 +65,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     })();
   }, []);
 
-  const login = async (data: { email: string; password: string }) => {
-    await authService.login(data);
-    const res = await authService.getCurrentUser();
-    const user = res.user || null;
-    setUser(res.user || null);
-    return user;
-  };
+  const login = async (data: { email: string; password: string; rememberMe?: boolean }) => {
+  try {
+    // Call login API and wait for token to be set
+    const res = await authService.login(data);
 
+    // Only fetch user if login succeeded
+    const currentUser = await authService.getCurrentUser();
+    const user = currentUser?.user || null;
+    setUser(user);
+    return user;
+  } catch (error: any) {
+    setUser(null); // Ensure user is null on error
+    throw new Error(error?.message || "Login failed");
+  }
+};
   const register = async (data: {
     username?: string;
     fullName?: string;

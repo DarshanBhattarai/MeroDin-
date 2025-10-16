@@ -5,7 +5,7 @@ import {
   comparePassword,
   hashToken,
   generateOTP,
-} from "../utils/auth.js";
+} from "../lib/auth.js";
 import { sendEmail } from "../utils/email.js";
 import { ValidationError, NotFoundError } from "../utils/errors.js";
 

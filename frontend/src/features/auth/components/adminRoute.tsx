@@ -1,4 +1,3 @@
-// src/features/auth/components/AdminRoute.tsx
 "use client";
 
 import { ReactNode, useEffect } from "react";
@@ -14,11 +13,9 @@ export default function AdminRoute({ children }: AdminRouteProps) {
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        // No user logged in - redirect to login
-        router.replace("/pages/auth/login");
+        router.replace("/auth/login");
       } else if (user.role !== "ADMIN") {
-        // User is not admin - redirect to regular dashboard
-        router.replace("/pages/dashboard");
+        router.replace("/dashboard");
       }
     }
   }, [user, loading, router]);
@@ -31,8 +28,12 @@ export default function AdminRoute({ children }: AdminRouteProps) {
     );
   }
 
-  if (user?.role !== "ADMIN") {
-    return null; // or a "Access Denied" message
+  if (user && user.role !== "ADMIN") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Access Denied</p>
+      </div>
+    );
   }
 
   return <>{children}</>;

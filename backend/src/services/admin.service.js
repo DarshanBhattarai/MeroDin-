@@ -1,6 +1,6 @@
 // src/services/admin.service.js
 import prisma from "../lib/prisma.js";
-import { comparePassword } from "../utils/auth.js";
+import { comparePassword } from "../lib/auth.js";
 import {
   AuthenticationError,
   ValidationError,

@@ -1,15 +1,11 @@
 import { Router } from "express";
 import { diaryController } from "../controllers/diaryController.js";
-import {
-  authenticate,
-  authorize,
-  diaryOwnership,
-} from "../middleware/auth.middleware.js";
-import { validateDiaryEntry } from "../middleware/validationMiddleware.js";
+import { authenticate, diaryOwnership } from "../middleware/auth.middleware.js";
+import { validateDiaryEntry } from "../middleware/validation.Middleware.js";
 import {
   diaryRateLimit,
   sensitiveOperationRateLimit,
-} from "../middleware/securityMiddleware.js";
+} from "../middleware/security.Middleware.js";
 
 const router = Router();
 
@@ -19,10 +15,9 @@ router.use(authenticate);
 
 // Diary entry routes
 router.post("/entries", validateDiaryEntry, diaryController.createDiaryEntry);
-router.get("/entries", diaryController.getAllDiaryEntries);
-router.get("/entries/my", diaryController.getMyDiaryEntries);
 router.get("/entries/search", diaryController.searchDiaryEntries);
 router.get("/entries/analytics", diaryController.getDiaryAnalytics);
+router.get("/entries", diaryController.getAllDiaryEntries);
 
 // Single entry routes with ownership check
 router.get("/entries/:id", diaryOwnership, diaryController.getDiaryEntry);

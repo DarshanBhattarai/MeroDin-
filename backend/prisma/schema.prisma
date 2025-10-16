@@ -44,6 +44,7 @@ model DiaryEntry {
   id              Int       @id @default(autoincrement())
   userId          Int
   user            User      @relation(fields: [userId], references: [id])
+  entryDate       DateTime
 
   title           String
   contentRaw      String     // user’s original writing
@@ -61,6 +62,9 @@ model DiaryEntry {
 
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
+
+  @@unique([userId, entryDate])
+
 }
 
 enum DiaryType {

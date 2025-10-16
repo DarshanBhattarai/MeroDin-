@@ -1,178 +1,174 @@
-import { useState, useEffect } from 'react';
-import { DiaryEntry, CreateDiaryEntryInput, UpdateDiaryEntryInput, DiaryStats, DiaryFilters } from '@/types/diary';
-import { diaryService } from '../services/diaryService';
+import { useState, useEffect, useRef } from "react";
+import { DiaryEntry, CreateDiaryEntryInput, UpdateDiaryEntryInput, DiaryStats, DiaryFilters } from "@/types/diary";
+import { diaryService } from "../services/diaryService";
+
+type LoadingMap = {
+  [key: string]: boolean;
+};
 
 export const useDiary = () => {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadingMap = useRef<LoadingMap>({});
 
-  const createEntry = async (data: CreateDiaryEntryInput): Promise<DiaryEntry> => {
+  const isLoading = (key: string) => !!loadingMap.current[key];
+
+  // --- Helper to handle API calls safely ---
+  const handleRequest = async <T>(key: string, fn: () => Promise<T>): Promise<T | null> => {
+    if (isLoading(key)) return null; // prevent duplicate calls
+    loadingMap.current[key] = true;
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
+      const result = await fn();
+      return result;
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Something went wrong";
+      setError(msg);
+      return null;
+    } finally {
+      loadingMap.current[key] = false;
+    }
+  };
+
+  // --- CRUD Operations ---
+  const createEntry = async (data: CreateDiaryEntryInput) => {
+    return handleRequest("createEntry", async () => {
       const newEntry = await diaryService.createEntry(data);
-      setEntries(prev => [newEntry, ...prev]);
+      setEntries((prev) => [newEntry, ...prev]);
       return newEntry;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create entry');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
-  const updateEntry = async (id: number, data: UpdateDiaryEntryInput): Promise<DiaryEntry> => {
-    try {
-      setLoading(true);
-      setError(null);
-      const updatedEntry = await diaryService.updateEntry(id, data);
-      setEntries(prev => prev.map(entry => entry.id === id ? updatedEntry : entry));
-      return updatedEntry;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update entry');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+  const updateEntry = async (id: number, data: UpdateDiaryEntryInput) => {
+    return handleRequest(`updateEntry-${id}`, async () => {
+      const updated = await diaryService.updateEntry(id, data);
+      setEntries((prev) => prev.map((e) => (e.id === id ? updated : e)));
+      return updated;
+    });
   };
 
-  const deleteEntry = async (id: number): Promise<void> => {
-    try {
-      setLoading(true);
-      setError(null);
+  const deleteEntry = async (id: number) => {
+    return handleRequest(`deleteEntry-${id}`, async () => {
       await diaryService.deleteEntry(id);
-      setEntries(prev => prev.filter(entry => entry.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete entry');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      return true;
+    });
   };
 
-  const fetchEntries = async (filters?: DiaryFilters): Promise<DiaryEntry[]> => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchEntries = async (filters?: DiaryFilters) => {
+    return handleRequest("fetchEntries", async () => {
       const response = await diaryService.getEntries(filters);
-      setEntries(response.entries);
-      return response.entries;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch entries');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+      setEntries(response?.entries || []);
+      return response?.entries || [];
+    });
   };
 
-  const fetchMyEntries = async (filters?: { diaryType?: string; mood?: string }): Promise<DiaryEntry[]> => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchMyEntries = async (filters?: { diaryType?: string; mood?: string }) => {
+    return handleRequest("fetchMyEntries", async () => {
       const myEntries = await diaryService.getMyEntries(filters);
-      setEntries(myEntries);
-      return myEntries;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch your entries');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+      setEntries(myEntries || []);
+      return myEntries || [];
+    });
   };
 
   return {
     entries,
-    loading,
     error,
+    loadingMap: loadingMap.current,
     createEntry,
     updateEntry,
     deleteEntry,
     fetchEntries,
     fetchMyEntries,
+    isLoading,
   };
 };
 
-export const useDiaryEntry = (id: number) => {
+// --- Single diary entry hook ---
+export const useDiaryEntry = (id?: number) => {
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const fetchEntry = async (): Promise<DiaryEntry> => {
+  const fetchEntry = async () => {
+    if (!id) return null;
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const entryData = await diaryService.getEntryById(id);
-      setEntry(entryData);
-      return entryData;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch entry');
-      throw err;
+      const e = await diaryService.getEntryById(id);
+      setEntry(e || null);
+      return e;
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to fetch entry";
+      setError(msg);
+      setEntry(null);
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
-  const updateEntry = async (data: UpdateDiaryEntryInput): Promise<DiaryEntry> => {
+  const updateThisEntry = async (data: UpdateDiaryEntryInput) => {
+    if (!id) return null;
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const updatedEntry = await diaryService.updateEntry(id, data);
-      setEntry(updatedEntry);
-      return updatedEntry;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update entry');
-      throw err;
+      const updated = await diaryService.updateEntry(id, data);
+      setEntry(updated);
+      return updated;
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to update entry";
+      setError(msg);
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteEntry = async (): Promise<void> => {
+  const deleteThisEntry = async () => {
+    if (!id) return false;
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
       await diaryService.deleteEntry(id);
       setEntry(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete entry');
-      throw err;
+      return true;
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to delete entry";
+      setError(msg);
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (id) {
-      fetchEntry();
-    }
+    if (id) fetchEntry();
   }, [id]);
 
-  return {
-    entry,
-    loading,
-    error,
-    fetchEntry,
-    updateEntry,
-    deleteEntry,
-  };
+  return { entry, error, loading, fetchEntry, updateEntry: updateThisEntry, deleteEntry: deleteThisEntry };
 };
 
+// --- Analytics hook ---
 export const useDiaryAnalytics = () => {
   const [stats, setStats] = useState<DiaryStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasFetchedRef = useRef(false);
 
-  const fetchAnalytics = async (): Promise<DiaryStats> => {
+  const fetchAnalytics = async () => {
+    if (loading || hasFetchedRef.current) return stats;
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
       const analytics = await diaryService.getAnalytics();
       setStats(analytics);
+      hasFetchedRef.current = true;
       return analytics;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch analytics');
-      throw err;
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to fetch analytics";
+      setError(msg);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -182,10 +178,5 @@ export const useDiaryAnalytics = () => {
     fetchAnalytics();
   }, []);
 
-  return {
-    stats,
-    loading,
-    error,
-    fetchAnalytics,
-  };
+  return { stats, loading, error, fetchAnalytics };
 };

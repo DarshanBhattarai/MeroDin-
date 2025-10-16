@@ -10,6 +10,7 @@ export default function GoogleLogin({ onClick }: GoogleLoginProps) {
     <button
       type="button"
       onClick={onClick}
+      aria-label="Sign in with Google"
       className="flex items-center justify-center gap-3 px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg shadow hover:shadow-md hover:bg-gray-100 transition-all duration-200 active:scale-95 w-full"
     >
       <svg

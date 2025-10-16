@@ -1,7 +1,7 @@
 // src/controllers/auth.controller.js
 import prisma from "../lib/prisma.js";
 import userService from "../services/user.service.js";
-import { generateAccessToken, generateRefreshToken } from "../utils/auth.js";
+import { generateAccessToken, generateRefreshToken } from "../lib/auth.js";
 import { AuthenticationError, ValidationError } from "../utils/errors.js";
 import jwt from "jsonwebtoken";
 

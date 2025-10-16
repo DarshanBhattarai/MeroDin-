@@ -2,7 +2,14 @@
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
 import { AuthenticationError } from "../utils/errors.js";
+import { diaryService } from "../services/diary.service.js";
 
+const responseHandler = {
+  error: (res, message, status = 500) => res.status(status).json({ error: message }),
+  success: (res, data) => res.json(data),
+};
+
+// Authenticate user via JWT token
 export const authenticate = async (req, res, next) => {
   try {
     const token =
@@ -13,67 +20,51 @@ export const authenticate = async (req, res, next) => {
     let payload;
     try {
       payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    } catch (e) {
+    } catch {
       throw new AuthenticationError("Invalid or expired token");
     }
 
     const user = await prisma.user.findUnique({
       where: { id: Number(payload.userId) },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        isEmailVerified: true,
-      },
+      select: { id: true, email: true, fullName: true, role: true, isEmailVerified: true },
     });
+
     if (!user) throw new AuthenticationError("User not found");
 
     req.user = user;
     next();
   } catch (err) {
-    next(err);
+    return responseHandler.error(res, err.message, 401);
   }
 };
 
+// Authorize by roles
 export const authorize = (roles = []) => {
   return (req, res, next) => {
-    if (!req.user) {
-      return responseHandler.error(res, 'Authentication required', 401);
-    }
-
-    if (!roles.includes(req.user.role)) {
-      return responseHandler.error(res, 'Insufficient permissions', 403);
-    }
-
+    if (!req.user) return responseHandler.error(res, "Authentication required", 401);
+    if (!roles.includes(req.user.role)) return responseHandler.error(res, "Insufficient permissions", 403);
     next();
   };
 };
 
+// Check diary ownership for sensitive routes
 export const diaryOwnership = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const entryId = parseInt(req.params.id);
+    if (isNaN(entryId)) return responseHandler.error(res, "Invalid diary entry ID", 400);
+
     const userId = req.user.id;
     const userRole = req.user.role;
 
-    // Import here to avoid circular dependency
-    const { diaryService } = await import('../services/diaryService.js');
+    // Pass all required arguments
+    const diaryEntry = await diaryService.getDiaryEntryById(entryId, userId, userRole);
 
-    const diaryEntry = await diaryService.getDiaryEntryById(parseInt(id));
-
-    if (!diaryEntry) {
-      return responseHandler.error(res, 'Diary entry not found', 404);
-    }
-
-    // Admins can access non-secret entries, users can only access their own
-    if (userRole !== 'ADMIN' && diaryEntry.userId !== userId) {
-      return responseHandler.error(res, 'Access denied to this diary entry', 403);
-    }
-
-    // Store diary entry for later use
+    // Ownership/access check is already handled in service
     req.diaryEntry = diaryEntry;
     next();
   } catch (error) {
+    if (error.message.includes("not found")) return responseHandler.error(res, error.message, 404);
+    if (error.message.includes("Access denied")) return responseHandler.error(res, error.message, 403);
     return responseHandler.error(res, error.message, 500);
   }
 };

@@ -1,35 +1,51 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useRouter } from 'next/navigation';
+import React from "react";
+import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/features/auth/components/ProtectedRoute";
-import { DashboardLayout } from '@/features/dashboard/layouts/DashboardLayout';
-import { RecentEntries } from '@/features/dashboard/components/RecentEntries';
-import { DiaryStats } from '@/features/dashboard/components/DiaryStats';
-import { QuickActions } from '@/features/dashboard/components/QuickActions';
-import { useDiary, useDiaryAnalytics } from '@/features/entities/hooks/useDiary';
+import { DashboardLayout } from "@/features/dashboard/layouts/DashboardLayout";
+import { RecentEntries } from "@/features/dashboard/components/RecentEntries";
+import { DiaryStats } from "@/features/dashboard/components/DiaryStats";
+import { QuickActions } from "@/features/dashboard/components/QuickActions";
+import {
+  useDiary,
+  useDiaryAnalytics,
+} from "@/features/entities/hooks/useDiary";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { entries, fetchMyEntries, loading, error } = useDiary();
-  const { stats, fetchAnalytics } = useDiaryAnalytics();
+  const { entries, fetchMyEntries, error, isLoading } = useDiary();
+  const { stats, fetchAnalytics, loading: analyticsLoading } = useDiaryAnalytics();
+  
+  const isLoaded = React.useRef(false);
 
   React.useEffect(() => {
+    if (isLoaded.current) return;
+    isLoaded.current = true;
+
     const loadData = async () => {
       try {
-        await fetchMyEntries();
-        await fetchAnalytics();
+        await Promise.all([fetchMyEntries(), fetchAnalytics()]);
       } catch (err) {
-        console.error('Failed to load dashboard data:', err);
-        // If it's an auth error, redirect to login
-        if (err instanceof Error && err.message.includes('Authentication failed')) {
-          router.push('/pages/auth/login');
+        console.error("Failed to load dashboard data:", err);
+
+        // Handle auth errors
+        if (
+          err instanceof Error &&
+          err.message.includes("Authentication failed")
+        ) {
+          router.push("/pages/auth/login");
         }
       }
     };
 
     loadData();
-  }, [router, fetchMyEntries, fetchAnalytics]);
+  }, [fetchMyEntries, fetchAnalytics, router]);
+
+  // Determine loading state dynamically
+  const isFetchingEntries = isLoading("fetchMyEntries");
+  const isFetchingAnalytics = analyticsLoading;
+  const loading = isFetchingEntries || isFetchingAnalytics;
 
   return (
     <ProtectedRoute>
@@ -37,8 +53,12 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto">
           {/* Welcome Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h1>
-            <p className="text-gray-600">Here's what's been happening in your diary.</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Welcome Back!
+            </h1>
+            <p className="text-gray-600">
+              Here's what's been happening in your diary.
+            </p>
           </div>
 
           {/* Error Message */}

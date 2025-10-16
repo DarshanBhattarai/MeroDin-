@@ -8,6 +8,7 @@ import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import OAuthButtons from "./OAuthButtons";
 import useAuth from "../hooks/useAuth";
+import Link from "next/link";
 
 export default function LoginForm() {
   const { login } = useAuth();
@@ -33,8 +34,8 @@ export default function LoginForm() {
       } else {
         router.push("/pages/dashboard");
       }
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -82,12 +83,12 @@ export default function LoginForm() {
               />
               Remember me
             </label>
-            <a
-              href="/pages/auth/forgot-password"
+            <Link
+              href="/auth/forgot-password"
               className="text-blue-400 hover:underline"
             >
               Forgot password?
-            </a>
+            </Link>
           </div>
 
           <Button

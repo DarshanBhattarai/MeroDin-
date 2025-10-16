@@ -9,7 +9,7 @@ type DiaryEntryFormProps = {
 };
 
 const MOOD_OPTIONS = [
-  'Happy', 'Sad', 'Excited', 'Calm', 'Anxious', 'Grateful', 
+  'Happy', 'Sad', 'Excited', 'Calm', 'Anxious', 'Grateful',
   'Motivated', 'Tired', 'Peaceful', 'Confused', 'Loved', 'Stressed'
 ];
 
@@ -23,43 +23,56 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
     title: initialData?.title || '',
     contentRaw: initialData?.contentRaw || '',
     mood: initialData?.mood || '',
-    moodIntensity: initialData?.moodIntensity || 5,
-    diaryType: initialData?.diaryType || 'NORMAL' as DiaryType,
+    moodIntensity: initialData?.moodIntensity ?? 5,
+    diaryType: (initialData?.diaryType || 'NORMAL') as DiaryType,
     tags: initialData?.tags?.join(', ') || '',
     location: initialData?.location || '',
     isLocked: initialData?.isLocked || false,
     passwordHint: initialData?.passwordHint || '',
   });
 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleChange = <K extends keyof typeof formData>(field: K, value: typeof formData[K]) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const submitData = {
+    setErrorMessage(null);
+
+    const submitData: CreateDiaryEntryInput | UpdateDiaryEntryInput = {
       title: formData.title,
       contentRaw: formData.contentRaw,
       mood: formData.mood || undefined,
       moodIntensity: formData.moodIntensity || undefined,
       diaryType: formData.diaryType,
-      tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+      tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
       location: formData.location || undefined,
       isLocked: formData.isLocked,
       passwordHint: formData.passwordHint || undefined,
     };
 
-    await onSubmit(submitData);
-  };
-
-  const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    try {
+      await onSubmit(submitData);
+    } catch (error: any) {
+      // Works for fetch or Axios errors
+      const message = error?.response?.status === 409
+        ? "You already created a diary for today."
+        : error?.message || "Something went wrong. Please try again.";
+      setErrorMessage(message);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
+      {errorMessage && (
+        <div className="p-3 bg-red-100 text-red-700 rounded-md">{errorMessage}</div>
+      )}
+
       {/* Title */}
       <div>
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-          Title *
-        </label>
+        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
         <input
           type="text"
           id="title"
@@ -73,9 +86,7 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
 
       {/* Content */}
       <div>
-        <label htmlFor="contentRaw" className="block text-sm font-medium text-gray-700 mb-2">
-          Your Thoughts *
-        </label>
+        <label htmlFor="contentRaw" className="block text-sm font-medium text-gray-700 mb-2">Your Thoughts *</label>
         <textarea
           id="contentRaw"
           required
@@ -90,9 +101,7 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
       {/* Mood & Intensity */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="mood" className="block text-sm font-medium text-gray-700 mb-2">
-            How are you feeling?
-          </label>
+          <label htmlFor="mood" className="block text-sm font-medium text-gray-700 mb-2">How are you feeling?</label>
           <select
             id="mood"
             value={formData.mood}
@@ -100,9 +109,7 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select a mood</option>
-            {MOOD_OPTIONS.map(mood => (
-              <option key={mood} value={mood}>{mood}</option>
-            ))}
+            {MOOD_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
 
@@ -113,8 +120,8 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
           <input
             type="range"
             id="moodIntensity"
-            min="1"
-            max="10"
+            min={1}
+            max={10}
             value={formData.moodIntensity}
             onChange={(e) => handleChange('moodIntensity', parseInt(e.target.value))}
             className="w-full"
@@ -124,9 +131,7 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
 
       {/* Diary Type */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Entry Type
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Entry Type</label>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {(['NORMAL', 'SECRET', 'MEMORY', 'QUICK_NOTE'] as DiaryType[]).map(type => (
             <label key={type} className="flex items-center">
@@ -146,24 +151,20 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
 
       {/* Tags */}
       <div>
-        <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-2">
-          Tags (comma separated)
-        </label>
+        <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-2">Tags (comma separated)</label>
         <input
           type="text"
           id="tags"
           value={formData.tags}
           onChange={(e) => handleChange('tags', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="work, travel, family, friends"
+          placeholder="work, travel, family"
         />
       </div>
 
       {/* Location */}
       <div>
-        <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-          Location
-        </label>
+        <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">Location</label>
         <input
           type="text"
           id="location"
@@ -174,7 +175,7 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
         />
       </div>
 
-      {/* Lock Settings */}
+      {/* Lock */}
       <div className="border-t pt-4">
         <div className="flex items-center mb-3">
           <input
@@ -184,29 +185,24 @@ export const DiaryEntryForm: React.FC<DiaryEntryFormProps> = ({
             onChange={(e) => handleChange('isLocked', e.target.checked)}
             className="mr-2"
           />
-          <label htmlFor="isLocked" className="text-sm font-medium text-gray-700">
-            Lock this entry (make it private)
-          </label>
+          <label htmlFor="isLocked" className="text-sm font-medium text-gray-700">Lock this entry (private)</label>
         </div>
-
         {formData.isLocked && (
           <div>
-            <label htmlFor="passwordHint" className="block text-sm font-medium text-gray-700 mb-2">
-              Password Hint (optional)
-            </label>
+            <label htmlFor="passwordHint" className="block text-sm font-medium text-gray-700 mb-2">Password Hint (optional)</label>
             <input
               type="text"
               id="passwordHint"
               value={formData.passwordHint}
               onChange={(e) => handleChange('passwordHint', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="A hint to help you remember the password"
+              placeholder="A hint to help you remember"
             />
           </div>
         )}
       </div>
 
-      {/* Submit Button */}
+      {/* Submit */}
       <div>
         <button
           type="submit"
