@@ -36,7 +36,7 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
   return data;
 };
 
-
+// Existing functions
 export const createEntry = async (data: CreateDiaryEntryInput): Promise<DiaryEntry> => {
   return request("/entries", { method: "POST", body: JSON.stringify(data) });
 };
@@ -90,6 +90,43 @@ export const searchEntries = async (query: string, filters: { diaryType?: string
   return { entries: response.entries || [], pagination: response.pagination };
 };
 
+// NEW FUNCTIONS FOR CALENDAR
+export const getEntriesByDate = async (date: string): Promise<DiaryEntry[]> => {
+  try {
+    // Use the existing getEntries with date filter
+    const result = await getEntries({ date } as DiaryFilters);
+    return result.entries || [];
+  } catch (error) {
+    console.error('Error fetching entries by date:', error);
+    return [];
+  }
+};
+
+export const getEntriesByMonth = async (month: string): Promise<DiaryEntry[]> => {
+  try {
+    // Use the existing getEntries with month filter
+    const result = await getEntries({ month } as DiaryFilters);
+    return result.entries || [];
+  } catch (error) {
+    console.error('Error fetching entries by month:', error);
+    return [];
+  }
+};
+
+export const getEntriesByDateRange = async (startDate: string, endDate: string): Promise<DiaryEntry[]> => {
+  try {
+    // Use the existing getEntries with date range filters
+    const result = await getEntries({ 
+      startDate, 
+      endDate 
+    } as DiaryFilters);
+    return result.entries || [];
+  } catch (error) {
+    console.error('Error fetching entries by date range:', error);
+    return [];
+  }
+};
+
 export const diaryService = {
   createEntry,
   getEntries,
@@ -99,4 +136,8 @@ export const diaryService = {
   deleteEntry,
   getAnalytics,
   searchEntries,
+  // Add the new calendar functions
+  getEntriesByDate,
+  getEntriesByMonth,
+  getEntriesByDateRange,
 };

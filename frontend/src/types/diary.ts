@@ -1,4 +1,4 @@
-export type DiaryType = 'NORMAL' | 'SECRET' | 'MEMORY' | 'QUICK_NOTE';
+export type DiaryType = "NORMAL" | "SECRET" | "MEMORY" | "QUICK_NOTE";
 
 export type CreateDiaryEntryInput = {
   title: string;
@@ -11,6 +11,7 @@ export type CreateDiaryEntryInput = {
   location?: string;
   isLocked?: boolean;
   passwordHint?: string;
+  entryDate?: string; // Add this for calendar functionality
 };
 
 export type UpdateDiaryEntryInput = {
@@ -24,6 +25,7 @@ export type UpdateDiaryEntryInput = {
   location?: string;
   isLocked?: boolean;
   passwordHint?: string;
+  entryDate?: string; // Add this for updates if needed
 };
 
 export type DiaryEntry = {
@@ -41,6 +43,7 @@ export type DiaryEntry = {
   passwordHint?: string;
   aiSummary?: string;
   aiKeywords: string[];
+  entryDate: string; // This should be in your DiaryEntry based on Prisma schema
   createdAt: string;
   updatedAt: string;
 };
@@ -49,28 +52,88 @@ export type DiaryStats = {
   totalEntries: number;
   entriesByType: Array<{
     diaryType: DiaryType;
-    _count: { id: number };
+    count: number;
   }>;
   entriesByMood: Array<{
     mood: string;
-    _count: { id: number };
+    count: number;
   }>;
-  recentActivity: number;
-  monthlyStats: Record<string, number>;
+  recentActivity: number; // Entries in last 7 days
+  monthlyStats: Record<string, number>; // YYYY-MM format keys
   averageMoodIntensity?: number;
+  mostUsedTags: string[];
+  longestStreak: number; // Consecutive days with entries
+  currentStreak: number;
+  weeklyAverage: number; // Average entries per week
+  monthlyAverage: number; // Average entries per month
 };
 
 export type DiaryFilters = {
+  // Date filters
+  date?: string; // Specific date (YYYY-MM-DD)
+  month?: string; // Month (YYYY-MM)
+  startDate?: string; // Start date for range (YYYY-MM-DD)
+  endDate?: string; // End date for range (YYYY-MM-DD)
+  dateFrom?: string; // Alternative name for startDate
+  dateTo?: string; // Alternative name for endDate
+  
+  // Content filters
   diaryType?: DiaryType;
   mood?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  search?: string;
+  tags?: string[];
+  search?: string; // Full-text search in title and content
+  
+  // Privacy filters
+  isLocked?: boolean;
+  
+  // Pagination
   page?: number;
   limit?: number;
+  
+  // Sorting
+  sortBy?: 'createdAt' | 'updatedAt' | 'entryDate' | 'title';
+  sortOrder?: 'asc' | 'desc';
 };
 
 export type LockedDiaryAccess = {
   entryId: number;
   password?: string;
+};
+
+// Additional types for analytics and reporting
+export type MonthlyStats = {
+  month: string; // YYYY-MM
+  entries: number;
+  averageMood?: number;
+  mostCommonMood?: string;
+  wordCount?: number;
+};
+
+export type MoodAnalytics = {
+  mood: string;
+  count: number;
+  percentage: number;
+  averageIntensity: number;
+  lastUsed: string;
+};
+
+export type TagAnalytics = {
+  tag: string;
+  count: number;
+  percentage: number;
+  lastUsed: string;
+};
+
+export type WritingStats = {
+  totalWords: number;
+  averageWordsPerEntry: number;
+  longestEntry: number;
+  shortestEntry: number;
+  mostProductiveDay: string; // day of week
+  writingTimeStats: {
+    morning: number; // 6AM-12PM
+    afternoon: number; // 12PM-6PM  
+    evening: number; // 6PM-12AM
+    night: number; // 12AM-6AM
+  };
 };

@@ -1,33 +1,18 @@
-import type { Entry } from './entries';
+// Reuse your existing types from src/types/diary.ts
+import type { DiaryEntry as ExistingDiaryEntry } from '@/types/diary';
 
-export type CalendarEvent = {
-  date: string;
-  count: number;
-  entries: Entry[];
-  mood?: string;
-  hasEntry: boolean;
+// Extend or use directly your existing types
+export type DiaryEntry = ExistingDiaryEntry;
+
+export type CalendarDay = {
+  date: Date;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  diaryEntry?: DiaryEntry;
 };
 
-export type CalendarView = 'month' | 'week' | 'day';
-
-export type CalendarFilters = {
-  year?: number;
-  month?: number;
-  mood?: string;
-  tags?: string[];
-};
-
-export type HeatmapData = {
-  date: string;
-  count: number;
-  intensity: number; // 0-5 scale for heatmap colors
-  mood?: string;
-};
-
-export type CalendarStats = {
-  totalEntries: number;
-  streak: number;
-  longestStreak: number;
-  mostProductiveDay: string;
-  entriesByMonth: Array<{ month: string; count: number }>;
+export type MonthData = {
+  year: number;
+  month: number;
+  days: CalendarDay[];
 };
