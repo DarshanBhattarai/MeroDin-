@@ -7,9 +7,15 @@ import { useDiary } from "@/features/entities/hooks/useDiary";
 export default function EntriesListPage() {
   const { entries, fetchEntries, isLoading } = useDiary();
 
-  useEffect(() => {
-    fetchEntries(); // Load entries when page loads
-  }, []);
+useEffect(() => {
+  // Run only once on mount
+  let mounted = true;
+  if (mounted) fetchEntries();
+  return () => {
+    mounted = false;
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   if (isLoading("fetchEntries")) {
     return (

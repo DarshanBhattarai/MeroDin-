@@ -23,20 +23,33 @@ export type OTPRequest = {
   otp?: string;
   type?: string;
 };
+// --- Refresh access token ---
+export async function refreshTokens(): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/auth/refresh", {
+    method: "POST",
+  });
+}
 
 // --- Helper for API requests ---
 async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retry = true
 ): Promise<T> {
   const res = await fetch(`${API_URL}${endpoint}`, {
-    credentials: "include", // sends HttpOnly cookies automatically
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
     },
     ...options,
   });
+
+  if (res.status === 401 && retry && endpoint !== "/api/auth/refresh") {
+    // Only retry if it's NOT the refresh endpoint
+    await refreshTokens();
+    return apiFetch<T>(endpoint, options, false);
+  }
 
   const data = await res.json().catch(() => ({}));
 
@@ -64,20 +77,19 @@ export async function login(data: {
   });
 }
 
-
 // --- OTP functions ---
 export async function verifyOTP(data: {
   email: string;
   otp: string;
-}): Promise<{ user: UserResponse['user']; message: string }> {
+}): Promise<{ user: UserResponse["user"]; message: string }> {
   console.log("🔄 Verifying OTP with data:", data);
-  const response = await apiFetch<{ user: UserResponse['user']; message: string }>(
-    "/api/auth/verify-email-otp",
-    {
-      method: "POST",
-      body: JSON.stringify(data),
-    }
-  );
+  const response = await apiFetch<{
+    user: UserResponse["user"];
+    message: string;
+  }>("/api/auth/verify-email-otp", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
   console.log("✅ OTP Verification Response:", response);
   return response;
 }
