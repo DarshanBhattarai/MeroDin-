@@ -10,6 +10,7 @@ import { sendEmail } from "../utils/email.js";
 import { ValidationError, NotFoundError } from "../utils/errors.js";
 
 const OTP_EXPIRE_SECONDS = Number(process.env.OTP_EXPIRES_MINUTES || 15) * 60;
+const PREV_REFRESH_EXPIRE = 120; // 2 minutes grace
 
 const userService = {
   // ---------------- REGISTER ----------------
@@ -20,24 +21,20 @@ const userService = {
     }
 
     const hashedPassword = await hashPassword(password);
-
-    // Generate OTP
     const otp = generateOTP(6);
     const otpHash = hashToken(otp);
 
-    // Store OTP temporarily in Redis
     await redisClient.set(
       `pendingUser:${email}`,
       JSON.stringify({ email, fullName, hashedPassword, otpHash }),
       { EX: OTP_EXPIRE_SECONDS }
     );
 
-    // Send OTP email
     await sendEmail({
       to: email,
       subject: "Verify your email",
-      text: `Your OTP is ${otp}. It expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.`,
-      html: `<p>Your OTP is <strong>${otp}</strong>. It expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.</p>`,
+      text: `Your OTP is ${otp}. Expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.`,
+      html: `<p>Your OTP is <strong>${otp}</strong>. Expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.</p>`,
     });
 
     return { message: "OTP sent to email for verification." };
@@ -47,16 +44,12 @@ const userService = {
   async verifyEmailOTP({ email, otp }) {
     const cached = await redisClient.get(`pendingUser:${email}`);
     if (!cached)
-      throw new ValidationError(
-        "OTP expired or not found. Please register again."
-      );
+      throw new ValidationError("OTP expired. Please register again.");
 
     const { fullName, hashedPassword, otpHash } = JSON.parse(cached);
 
-    // MOVE THE VALIDATION BEFORE ANY DATABASE OPERATIONS
     if (hashToken(otp) !== otpHash) throw new ValidationError("Invalid OTP.");
 
-    // Only proceed if OTP is valid
     const user = await prisma.user.upsert({
       where: { email },
       create: {
@@ -68,11 +61,9 @@ const userService = {
       update: { fullName, password: hashedPassword, isEmailVerified: true },
     });
 
-    // Delete from Redis after successful verification
     await redisClient.del(`pendingUser:${email}`);
 
-    // Log OTP success
-    const otpLog = await prisma.otpLog.create({
+    await prisma.otpLog.create({
       data: {
         userId: user.id,
         otpType: "EMAIL_VERIFY",
@@ -81,7 +72,7 @@ const userService = {
       },
     });
 
-    return { user, otpLog };
+    return { user };
   },
 
   // ---------------- CREATE OTP ----------------
@@ -104,8 +95,8 @@ const userService = {
       to: user.email,
       subject:
         type === "EMAIL_VERIFY" ? "Verify your email" : "Password Reset OTP",
-      text: `Your OTP is ${otp}. It expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.`,
-      html: `<p>Your OTP is <strong>${otp}</strong>. It expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.</p>`,
+      text: `Your OTP is ${otp}. Expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.`,
+      html: `<p>Your OTP is <strong>${otp}</strong>. Expires in ${process.env.OTP_EXPIRES_MINUTES || 15} minutes.</p>`,
     });
 
     return { message: `OTP sent to ${user.email}` };
@@ -121,41 +112,33 @@ const userService = {
       throw new ValidationError("OTP expired. Please request a new one.");
 
     const { otpHash } = JSON.parse(cached);
-    let success = false;
-
-    if (hashToken(otp) === otpHash) {
-      success = true;
-      if (type === "EMAIL_VERIFY" && !user.isEmailVerified) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { isEmailVerified: true },
-        });
-      }
-    }
-
-    const otpLog = await prisma.otpLog.create({
-      data: { userId: user.id, otpType: type, attempts: 1, success },
-    });
-
-    await redisClient.del(`otp:${type}:${email}`);
+    const success = hashToken(otp) === otpHash;
 
     if (!success) throw new ValidationError("Invalid OTP.");
 
-    return { user, otpLog };
+    if (type === "EMAIL_VERIFY" && !user.isEmailVerified) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { isEmailVerified: true },
+      });
+    }
+
+    await prisma.otpLog.create({
+      data: { userId: user.id, otpType: type, attempts: 1, success },
+    });
+    await redisClient.del(`otp:${type}:${email}`);
+
+    return { user };
   },
 
   // ---------------- AUTHENTICATION ----------------
   async authenticateUser(email, password) {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) throw new ValidationError("Invalid credentials.");
-
-    const valid = await comparePassword(password, user.password);
-    if (!valid) throw new ValidationError("Invalid credentials.");
-
-    if (!user.isEmailVerified) {
-      throw new ValidationError("Please verify your email before logging in.");
+    if (!user || !(await comparePassword(password, user.password))) {
+      throw new ValidationError("Invalid credentials.");
     }
-
+    if (!user.isEmailVerified)
+      throw new ValidationError("Please verify your email.");
     return user;
   },
 
@@ -174,7 +157,26 @@ const userService = {
       select: { refreshTokenHash: true },
     });
     if (!user?.refreshTokenHash) return false;
-    return user.refreshTokenHash === hashToken(refreshToken);
+    return hashToken(refreshToken) === user.refreshTokenHash;
+  },
+
+  async verifyPreviousRefreshToken(userId, refreshToken) {
+    const prevHash = await redisClient.get(`prevRefresh:${userId}`);
+    if (!prevHash) return false;
+    return hashToken(refreshToken) === prevHash;
+  },
+
+  async rotateRefreshToken(userId, oldToken, newToken) {
+    if (oldToken) {
+      await redisClient.set(`prevRefresh:${userId}`, hashToken(oldToken), {
+        EX: PREV_REFRESH_EXPIRE,
+      });
+    }
+    const newHash = hashToken(newToken);
+    await prisma.user.update({
+      where: { id: Number(userId) },
+      data: { refreshTokenHash: newHash },
+    });
   },
 
   async clearRefreshToken(userId) {

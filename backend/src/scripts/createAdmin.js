@@ -1,6 +1,6 @@
 // scripts/createAdmin.js
 import { PrismaClient } from "@prisma/client";
-import { hashPassword } from "../utils/auth.js";
+import { hashPassword } from "../lib/auth.js";
 import dotenv from "dotenv";
 
 dotenv.config();

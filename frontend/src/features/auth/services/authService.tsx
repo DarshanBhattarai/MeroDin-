@@ -23,13 +23,6 @@ export type OTPRequest = {
   otp?: string;
   type?: string;
 };
-// --- Refresh access token ---
-export async function refreshTokens(): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>("/api/auth/refresh", {
-    method: "POST",
-  });
-}
-
 // --- Helper for API requests ---
 async function apiFetch<T>(
   endpoint: string,
@@ -45,18 +38,57 @@ async function apiFetch<T>(
     ...options,
   });
 
+  // Handle 401 - refresh token once
   if (res.status === 401 && retry && endpoint !== "/api/auth/refresh") {
-    // Only retry if it's NOT the refresh endpoint
-    await refreshTokens();
-    return apiFetch<T>(endpoint, options, false);
-  }
+    try {
+      const refreshRes = await refreshTokens();
 
-  const data = await res.json().catch(() => ({}));
+      // If refresh returns an explicit failure message, treat as expired
+      const msg = (refreshRes?.message || "").toLowerCase();
+      if (
+        msg.includes("invalid") ||
+        msg.includes("expired") ||
+        msg.includes("failed")
+      ) {
+        throw new Error("Refresh token failed");
+      }
+
+      // Otherwise assume refresh succeeded and retry original request
+      return apiFetch<T>(endpoint, options, false);
+    } catch {
+      throw new Error("Session expired. Please login again.");
+    }
+  }
+  let data: any;
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
 
   if (!res.ok)
     throw new Error(data.message || `Request failed: ${res.statusText}`);
 
   return data;
+}
+
+// --- Refresh access token ---
+export async function refreshTokens(): Promise<{ message: string }> {
+  try {
+    const res = await apiFetch<{ message: string }>(
+      "/api/auth/refresh",
+      {
+        method: "POST",
+        credentials: "include",
+      },
+      false
+    ); // disable retry for refresh
+    console.log("Frontend: refreshTokens response:", res);
+    return res;
+  } catch (error) {
+    console.log("Frontend: refreshTokens error:", error);
+    return { message: "Refresh token invalid or expired" };
+  }
 }
 
 // --- Auth functions ---

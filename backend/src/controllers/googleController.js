@@ -1,7 +1,9 @@
-// src/controllers/googleController.js - UPDATED
+// src/controllers/googleController.js
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
+import userService from "../services/auth.service.js"; // use the same service
+import { generateAccessToken, generateRefreshToken } from "../lib/auth.js";
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -23,11 +25,9 @@ export const googleAuthCallback = async (req, res) => {
     const code = req.query.code;
     if (!code) return res.status(400).send("Missing code");
 
-    // Exchange code for tokens
     const { tokens } = await client.getToken(code);
     client.setCredentials(tokens);
 
-    // Verify ID token
     const ticket = await client.verifyIdToken({
       idToken: tokens.id_token,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -38,7 +38,7 @@ export const googleAuthCallback = async (req, res) => {
 
     const { email, name, picture, sub } = payload;
 
-    // Find or create user
+    // --- Find or create user ---
     let user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
@@ -60,37 +60,29 @@ export const googleAuthCallback = async (req, res) => {
       });
     }
 
-    // Generate JWT tokens (same as your login flow)
-    const accessToken = jwt.sign(
-      { userId: user.id }, 
-      process.env.JWT_ACCESS_SECRET, 
-      { expiresIn: '15m' }
-    );
-    
-    const refreshToken = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: '30d' }
-    );
+    // --- Generate tokens ---
+    const accessToken = generateAccessToken({ userId: user.id });
+    const refreshToken = generateRefreshToken({ userId: user.id });
 
-    // Set HttpOnly cookies (same as your login flow)
-    res.cookie('access_token', accessToken, {
+    // --- Save refresh token via userService ---
+    await userService.saveRefreshToken(user.id, refreshToken);
+
+    // --- Set cookies ---
+    res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000 // 15 minutes
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 15,
     });
 
-    res.cookie('refresh_token', refreshToken, {
+    res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 30,
     });
 
-    // Redirect to frontend success page
     res.redirect(`${process.env.APP_URL}/pages/auth/success`);
-
   } catch (error) {
     console.error("Google OAuth Error:", error);
     res.redirect(`${process.env.APP_URL}/pages/auth/login?error=oauth_failed`);

@@ -7,8 +7,9 @@ import jwt from "jsonwebtoken";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  secure: false,
   sameSite: "lax",
+  path: "/",
 };
 
 export const register = async (req, res, next) => {
@@ -34,15 +35,11 @@ export const verifyEmailOTP = async (req, res, next) => {
 
     // Set cookies
     res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      ...COOKIE_OPTIONS,
       maxAge: 1000 * 60 * 15,
     });
     res.cookie("refresh_token", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      ...COOKIE_OPTIONS,
       maxAge: 1000 * 60 * 60 * 24 * 30,
     });
 
@@ -89,24 +86,48 @@ export const login = async (req, res, next) => {
 export const refreshTokens = async (req, res, next) => {
   try {
     const token = req.cookies?.refresh_token;
-    if (!token) throw new AuthenticationError("No refresh token");
+
+    console.log("---- REFRESH DEBUG ----");
+    console.log("Cookie token:", token?.slice(0, 20));
+    console.log("Cookies:", req.cookies);
+    console.log("Headers:", req.headers);
+    console.log("-----------------------");
+
+    if (!token) {
+      console.info("refresh: no refresh_token cookie present");
+      throw new AuthenticationError("No refresh token");
+    }
 
     let payload;
     try {
       payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    } catch {
+    } catch (e) {
+      console.info("refresh: jwt verify failed:", e.message);
       throw new AuthenticationError("Invalid refresh token");
     }
 
+    console.info("refresh: token payload:", { userId: payload?.userId });
+
+    // Step 1: verify token against DB and Redis
     const valid = await userService.verifyRefreshToken(payload.userId, token);
     if (!valid) {
-      await userService.clearRefreshToken(payload.userId).catch(() => {});
-      throw new AuthenticationError("Refresh token invalid or revoked");
+      // check Redis for previous token (grace period)
+      const prevValid = await userService.verifyPreviousRefreshToken(
+        payload.userId,
+        token
+      );
+      if (!prevValid) {
+        await userService.clearRefreshToken(payload.userId).catch(() => {});
+        throw new AuthenticationError("Refresh token invalid or revoked");
+      }
     }
 
+    // Step 2: generate new tokens
     const newAccess = generateAccessToken({ userId: payload.userId });
     const newRefresh = generateRefreshToken({ userId: payload.userId });
-    await userService.saveRefreshToken(payload.userId, newRefresh);
+
+    // Step 3: rotate tokens
+    await userService.rotateRefreshToken(payload.userId, token, newRefresh);
 
     res.cookie("access_token", newAccess, {
       ...COOKIE_OPTIONS,
@@ -119,10 +140,10 @@ export const refreshTokens = async (req, res, next) => {
 
     res.json({ message: "Tokens refreshed" });
   } catch (err) {
+    console.error("refreshTokens error:", err?.message || err);
     next(err);
   }
 };
-
 export const logout = async (req, res, next) => {
   try {
     const token = req.cookies?.refresh_token;

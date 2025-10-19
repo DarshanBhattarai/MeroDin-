@@ -8,7 +8,7 @@ type DiaryStatsProps = {
 
 export const DiaryStats: React.FC<DiaryStatsProps> = ({ stats }) => {
   // Safe data access with fallbacks
-  const secretEntriesCount = stats?.entriesByType?.find(e => e.diaryType === 'SECRET')?._count.id || 0;
+  const secretEntriesCount = stats?.entriesByType?.find(e => e.diaryType === 'SECRET')?.count || 0;
   
   const statCards = [
     {
