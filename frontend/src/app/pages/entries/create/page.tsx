@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAppDispatch } from "@/hooks/reduxHooks"; // typed useDispatch hook
+import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAppDispatch } from "@/hooks/reduxHooks";
 import { createEntryThunk } from "@/features/entities/redux/diaryThunks";
 import { CreateDiaryEntryInput, UpdateDiaryEntryInput } from "@/types/diary";
 import { DashboardLayout } from "@/features/dashboard/layouts/DashboardLayout";
@@ -10,9 +10,18 @@ import { DiaryEntryForm } from "@/features/entities/components/DiaryEntryForm";
 
 export default function CreateEntryPage() {
   const router = useRouter();
+  const params = useSearchParams();
   const dispatch = useAppDispatch();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [entryDate, setEntryDate] = useState<string | undefined>();
+
+  // ✅ Extract the ?date=YYYY-MM-DD query parameter
+  useEffect(() => {
+    const dateParam = params.get("date");
+    if (dateParam) setEntryDate(dateParam);
+  }, [params]);
 
   const handleSubmit = async (
     data: CreateDiaryEntryInput | UpdateDiaryEntryInput
@@ -21,13 +30,19 @@ export default function CreateEntryPage() {
     setError(null);
 
     try {
-      const resultAction = await dispatch(createEntryThunk(data as CreateDiaryEntryInput));
-      
+      const resultAction = await dispatch(
+        createEntryThunk({
+          ...(data as CreateDiaryEntryInput),
+          entryDate, // ✅ inject the date from calendar
+        })
+      );
+
       if (createEntryThunk.fulfilled.match(resultAction)) {
-        router.push("/pages/entries");
+        router.push("/entries"); // ✅ fixed redirect path
       } else {
-        // Handle rejected action
-        setError(resultAction.payload as string || 'Failed to create entry');
+        setError(
+          (resultAction.payload as string) || "Failed to create entry"
+        );
       }
     } catch (err: any) {
       setError(err.message || "Something went wrong");
@@ -52,7 +67,9 @@ export default function CreateEntryPage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <DiaryEntryForm
               onSubmit={handleSubmit}
+              initialData={{ entryDate }}
               submitText={loading ? "Creating..." : "Create Entry"}
+              showDateInfo={!!entryDate} // ✅ show date header
             />
             {error && <p className="mt-2 text-red-500">{error}</p>}
           </div>

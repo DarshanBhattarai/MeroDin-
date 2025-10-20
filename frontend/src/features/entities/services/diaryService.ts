@@ -6,7 +6,8 @@ import {
   DiaryFilters,
 } from "@/types/diary";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 type RequestOptions = {
   method?: string;
@@ -29,7 +30,9 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`API error: ${response.status} ${response.statusText} - ${text}`);
+    throw new Error(
+      `API error: ${response.status} ${response.statusText} - ${text}`
+    );
   }
 
   const data = await response.json();
@@ -37,11 +40,15 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
 };
 
 // Existing functions
-export const createEntry = async (data: CreateDiaryEntryInput): Promise<DiaryEntry> => {
+export const createEntry = async (
+  data: CreateDiaryEntryInput
+): Promise<DiaryEntry> => {
   return request("/entries", { method: "POST", body: JSON.stringify(data) });
 };
 
-export const getEntries = async (filters: DiaryFilters = {}): Promise<{ entries: DiaryEntry[]; pagination?: any }> => {
+export const getEntries = async (
+  filters: DiaryFilters = {}
+): Promise<{ entries: DiaryEntry[]; pagination?: any }> => {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -52,7 +59,9 @@ export const getEntries = async (filters: DiaryFilters = {}): Promise<{ entries:
   return { entries: response.entries || [], pagination: response.pagination };
 };
 
-export const getMyEntries = async (filters: { diaryType?: string; mood?: string } = {}): Promise<DiaryEntry[]> => {
+export const getMyEntries = async (
+  filters: { diaryType?: string; mood?: string } = {}
+): Promise<DiaryEntry[]> => {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value) params.append(key, value);
@@ -66,8 +75,14 @@ export const getEntryById = async (id: number): Promise<DiaryEntry> => {
   return response.entry || response; // fallback if API wraps data differently
 };
 
-export const updateEntry = async (id: number, data: UpdateDiaryEntryInput): Promise<DiaryEntry> => {
-  const response = await request(`/entries/${id}`, { method: "PUT", body: JSON.stringify(data) });
+export const updateEntry = async (
+  id: number,
+  data: UpdateDiaryEntryInput
+): Promise<DiaryEntry> => {
+  const response = await request(`/entries/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
   return response.entry || response;
 };
 
@@ -81,7 +96,10 @@ export const getAnalytics = async (): Promise<DiaryStats> => {
   return response.stats || response; // fallback
 };
 
-export const searchEntries = async (query: string, filters: { diaryType?: string; mood?: string } = {}): Promise<{ entries: DiaryEntry[]; pagination?: any }> => {
+export const searchEntries = async (
+  query: string,
+  filters: { diaryType?: string; mood?: string } = {}
+): Promise<{ entries: DiaryEntry[]; pagination?: any }> => {
   const params = new URLSearchParams({ query });
   Object.entries(filters).forEach(([key, value]) => {
     if (value) params.append(key, value);
@@ -97,32 +115,45 @@ export const getEntriesByDate = async (date: string): Promise<DiaryEntry[]> => {
     const result = await getEntries({ date } as DiaryFilters);
     return result.entries || [];
   } catch (error) {
-    console.error('Error fetching entries by date:', error);
+    console.error("Error fetching entries by date:", error);
     return [];
   }
 };
 
-export const getEntriesByMonth = async (month: string): Promise<DiaryEntry[]> => {
+export const getEntriesByMonth = async (
+  month: string
+): Promise<DiaryEntry[]> => {
   try {
     // Use the existing getEntries with month filter
     const result = await getEntries({ month } as DiaryFilters);
     return result.entries || [];
   } catch (error) {
-    console.error('Error fetching entries by month:', error);
+    console.error("Error fetching entries by month:", error);
     return [];
   }
 };
+export const deleteEntryByDate = async (
+  entryDate: string
+): Promise<{ message: string }> => {
+  const response = await request(`/entries/date/${entryDate}`, {
+    method: "DELETE",
+  });
+  return response;
+};
 
-export const getEntriesByDateRange = async (startDate: string, endDate: string): Promise<DiaryEntry[]> => {
+export const getEntriesByDateRange = async (
+  startDate: string,
+  endDate: string
+): Promise<DiaryEntry[]> => {
   try {
     // Use the existing getEntries with date range filters
-    const result = await getEntries({ 
-      startDate, 
-      endDate 
+    const result = await getEntries({
+      startDate,
+      endDate,
     } as DiaryFilters);
     return result.entries || [];
   } catch (error) {
-    console.error('Error fetching entries by date range:', error);
+    console.error("Error fetching entries by date range:", error);
     return [];
   }
 };
@@ -134,9 +165,9 @@ export const diaryService = {
   getEntryById,
   updateEntry,
   deleteEntry,
+  deleteEntryByDate, // ✅ new
   getAnalytics,
   searchEntries,
-  // Add the new calendar functions
   getEntriesByDate,
   getEntriesByMonth,
   getEntriesByDateRange,

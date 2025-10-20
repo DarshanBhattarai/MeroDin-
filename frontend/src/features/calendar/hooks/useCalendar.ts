@@ -1,41 +1,52 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { CalendarService } from '../services/calendarService';
-import type { CalendarDay } from '@/types/calendar';
+import { useEffect, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
+import { fetchEntriesThunk } from "@/features/entities/redux/diaryThunks";
+import type { CalendarDay } from "@/types/calendar";
 
 export function useCalendar() {
+  const dispatch = useAppDispatch();
+  const { entries, loading, error } = useAppSelector((state) => state.diary);
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  const fetchCalendarData = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const diaryEntries = await CalendarService.getMonthData(year, month);
-      const days = CalendarService.generateCalendarDays(year, month, diaryEntries);
-      setCalendarDays(days);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch calendar data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    // Fetch diary entries for the month
+  dispatch(fetchEntriesThunk({ year: String(year), month: String(month) }));
+  }, [dispatch, year, month]);
 
   useEffect(() => {
-    fetchCalendarData();
-  }, [year, month]);
+    // Map diary entries to calendar days
+    const days: CalendarDay[] = [];
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    const totalDays = lastDayOfMonth.getDate();
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
+    for (let i = 1; i <= totalDays; i++) {
+      const date = new Date(year, month, i);
+      const diaryEntry = entries.find(
+        (e) => new Date(e.entryDate).toDateString() === date.toDateString()
+      );
+      days.push({
+        date,
+        isCurrentMonth: true,
+        isToday: date.toDateString() === new Date().toDateString(),
+        diaryEntry,
+      });
+    }
+
+    setCalendarDays(days);
+  }, [entries, year, month]);
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    setCurrentDate((prev) => {
       const newDate = new Date(prev);
-      newDate.setMonth(prev.getMonth() + (direction === 'next' ? 1 : -1));
+      newDate.setMonth(prev.getMonth() + (direction === "next" ? 1 : -1));
       return newDate;
     });
   };
@@ -44,8 +55,8 @@ export function useCalendar() {
     setCurrentDate(new Date());
   };
 
-  const refreshCalendar = async () => {
-    await fetchCalendarData();
+  const refreshCalendar = () => {
+    dispatch(fetchEntriesThunk({ year: String(year), month: String(month) }));
   };
 
   return {

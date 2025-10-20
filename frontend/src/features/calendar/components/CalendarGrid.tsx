@@ -19,6 +19,7 @@ export function CalendarGrid({ calendarDays, onDateSelect, onEntrySelect }: Cale
     showPreview, 
     hidePreview,
     updatePreviewPosition 
+    
   } = useDiaryPreview();
 
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -41,6 +42,7 @@ export function CalendarGrid({ calendarDays, onDateSelect, onEntrySelect }: Cale
       updatePreviewPosition(event);
     }
   };
+  
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

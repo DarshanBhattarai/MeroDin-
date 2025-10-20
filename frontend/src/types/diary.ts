@@ -71,6 +71,7 @@ export type DiaryStats = {
 export type DiaryFilters = {
   // Date filters
   date?: string; // Specific date (YYYY-MM-DD)
+  year?: string; // Year (YYYY)
   month?: string; // Month (YYYY-MM)
   startDate?: string; // Start date for range (YYYY-MM-DD)
   endDate?: string; // End date for range (YYYY-MM-DD)

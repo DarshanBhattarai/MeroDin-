@@ -1,118 +1,68 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { DiaryEntryCard } from "@/features/entities/components/DiaryEntryCard";
-import { DashboardLayout } from "@/features/dashboard/layouts/DashboardLayout";
-import { DiaryType, DiaryFilters } from "@/types/diary";
+import React, { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
-import { fetchEntriesThunk, deleteEntryThunk } from "@/features/entities/redux/diaryThunks";
+import {
+  fetchEntryByDateThunk,
+  updateEntryThunk,
+} from "@/features/entities/redux/diaryThunks";
+import { DiaryEntryForm } from "@/features/entities/components/DiaryEntryForm";
+import { UpdateDiaryEntryInput } from "@/types/diary";
+import { DashboardLayout } from "@/features/dashboard/layouts/DashboardLayout";
 
-export default function EntriesPage() {
+export default function EditEntryPage() {
+  const { date: dateParam } = useParams();
+  const router = useRouter();
   const dispatch = useAppDispatch();
-  const { entries, loading, error } = useAppSelector((state) => state.diary);
 
-  const [filters, setFilters] = useState<DiaryFilters>({});
+  const { currentEntry, loading, error } = useAppSelector(
+    (state) => state.diary
+  );
 
-  // Fetch entries on mount or when filters change
   useEffect(() => {
-    dispatch(fetchEntriesThunk(filters));
-  }, [dispatch, filters]);
+    if (dateParam) {
+      // Ensure it's a string
+      const dateStr = Array.isArray(dateParam) ? dateParam[0] : dateParam;
+      dispatch(fetchEntryByDateThunk(dateStr));
+    }
+  }, [dispatch, dateParam]);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this entry?")) return;
-    dispatch(deleteEntryThunk(id));
+  const handleSubmit = async (data: UpdateDiaryEntryInput) => {
+    if (!currentEntry) return;
+
+    try {
+      await dispatch(updateEntryThunk({ id: currentEntry.id, data })).unwrap();
+      router.push(`/entries/${currentEntry.entryDate}`);
+    } catch (err) {
+      console.error("Failed to update entry:", err);
+    }
   };
 
-  const safeEntries = Array.isArray(entries) ? entries : [];
+  if (loading)
+    return (
+      <DashboardLayout>
+        <div>Loading entry...</div>
+      </DashboardLayout>
+    );
+  if (error || !currentEntry)
+    return (
+      <DashboardLayout>
+        <div>{error || "Entry not found"}</div>
+      </DashboardLayout>
+    );
 
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-6xl mx-auto px-4">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                My Diary Entries
-              </h1>
-              <p className="text-gray-600 mt-2">
-                Your personal thoughts and memories
-              </p>
-            </div>
-            <Link
-              href="/pages/entries/create"
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              + New Entry
-            </Link>
-          </div>
-
-          {/* Filters */}
-          <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <select
-                value={filters.diaryType || ""}
-                onChange={(e) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    diaryType: e.target.value ? (e.target.value as DiaryType) : undefined,
-                  }))
-                }
-                className="border border-gray-300 rounded p-2"
-              >
-                <option value="">All Types</option>
-                {(['NORMAL','SECRET','MEMORY','QUICK_NOTE'] as DiaryType[]).map((type) => (
-                  <option key={type} value={type}>{type.replace("_", " ")}</option>
-                ))}
-              </select>
-
-              <input
-                type="text"
-                placeholder="Mood"
-                value={filters.mood || ""}
-                onChange={(e) => setFilters((prev) => ({ ...prev, mood: e.target.value || undefined }))}
-                className="border border-gray-300 rounded p-2"
-              />
-            </div>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-              {error}
-            </div>
-          )}
-
-          {/* Loading */}
-          {loading && safeEntries.length === 0 && (
-            <div className="text-center py-12">Loading your diary entries...</div>
-          )}
-
-          {/* Entries */}
-          {safeEntries.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-500 text-lg mb-4">
-                {error ? "Failed to load entries" : "No diary entries yet. Start writing your story!"}
-              </div>
-              <Link
-                href="/pages/entries/create"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Create Your First Entry
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {safeEntries.map((entry) => (
-                <DiaryEntryCard
-                  key={entry.id}
-                  entry={entry}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          )}
+        <div className="max-w-4xl mx-auto px-4">
+          <h1 className="text-3xl font-bold mb-4">Edit Diary Entry</h1>
+          <DiaryEntryForm
+            initialData={currentEntry}
+            onSubmit={handleSubmit}
+            loading={loading}
+            submitText="Update Entry"
+          />
         </div>
       </div>
     </DashboardLayout>

@@ -1,79 +1,80 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { diaryService } from '../../../../features/entities/services/diaryService';
-import { DiaryEntryForm } from '../../../../features/entities/components/DiaryEntryForm';
-import type { DiaryEntry } from '@/types/calendar';
+import { useEffect, useState } from 'react';
+import { diaryService } from '@/features/entities/services/diaryService';
+import { DiaryEntryForm } from '@/features/entities/components/DiaryEntryForm';
+import type { DiaryEntry } from '@/types/diary';
 
 export default function CalendarDatePage() {
   const params = useParams();
   const router = useRouter();
-  const date = params.date as string;
-  
-  const [existingEntry, setExistingEntry] = useState<DiaryEntry | null>(null);
+  const dateParam = params.date;
+
+  // Ensure date is string
+  const date = typeof dateParam === 'string' ? dateParam : dateParam?.[0];
+
+  const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
+  // Fetch entry for this date
   useEffect(() => {
-    const fetchEntryForDate = async () => {
+    if (!date) return;
+
+    const fetchEntry = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
         const entries = await diaryService.getEntriesByDate(date);
-        setExistingEntry(entries.length > 0 ? entries[0] : null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch diary entry');
+        setEntry(entries.length ? entries[0] : null);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch entry');
       } finally {
         setLoading(false);
       }
     };
 
-    if (date) {
-      fetchEntryForDate();
-    }
+    fetchEntry();
   }, [date]);
 
-  const handleCreateNew = () => {
-    setShowCreateForm(true);
-  };
+  const handleCreate = () => setShowForm(true);
+  const handleCancel = () => setShowForm(false);
 
   const handleFormSubmit = async (data: any) => {
     try {
-      await diaryService.createEntry(data);
-      // Refresh the page to show the new entry
-      window.location.reload();
-    } catch (error) {
-      console.error('Error creating entry:', error);
-      throw error;
+      const newEntry = await diaryService.createEntry({ ...data, entryDate: date });
+      setEntry(newEntry);
+      setShowForm(false);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to create entry');
     }
   };
 
-  const handleCancel = () => {
-    setShowCreateForm(false);
+  const handleDelete = async () => {
+    if (!entry) return;
+    try {
+      await diaryService.deleteEntryByDate(entry.entryDate);
+      setEntry(null);
+      router.push('/calendar');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to delete entry');
+    }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
     });
-  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-gray-600">Loading...</div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
-  if (showCreateForm) {
+  if (showForm)
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -81,96 +82,95 @@ export default function CalendarDatePage() {
             onClick={handleCancel}
             className="flex items-center text-blue-600 hover:text-blue-800 mb-6 transition-colors"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Date View
+            ← Back
           </button>
-          
-          <DiaryEntryForm 
-            initialData={{ 
-              entryDate: date // This will be automatically used by the form
-            }}
+
+          <DiaryEntryForm
+            initialData={{ entryDate: date }}
             onSubmit={handleFormSubmit}
-            submitText={`Create Entry for ${formatDate(date)}`}
+            submitText={`Create Entry for ${formatDate(date!)}`}
             showDateInfo={true}
           />
         </div>
       </div>
     );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <button
-                onClick={() => router.push('/calendar')}
-                className="flex items-center text-blue-600 hover:text-blue-800 mb-4 transition-colors"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Calendar
-              </button>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {formatDate(date)}
-              </h1>
-            </div>
-          </div>
+        <button
+          onClick={() => router.push('/calendar')}
+          className="flex items-center text-blue-600 hover:text-blue-800 mb-4 transition-colors"
+        >
+          ← Back to Calendar
+        </button>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            {existingEntry ? (
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-gray-900">{existingEntry.title}</h2>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => router.push(`/entries/${existingEntry.id}`)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => router.push(`/entries/${existingEntry.id}/edit`)}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </div>
-                <p className="text-gray-700 mb-4">
-                  {existingEntry.contentRaw?.substring(0, 200)}...
-                </p>
-                {existingEntry.mood && (
-                  <div className="text-sm text-gray-600">
-                    Mood: <span className="font-medium">{existingEntry.mood}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-12 text-center">
-                <div className="max-w-md mx-auto">
-                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No entry for this date</h3>
-                  <p className="text-gray-600 mb-6">
-                    You haven't written anything for {formatDate(date)}. Would you like to create an entry?
-                  </p>
-                  <button
-                    onClick={handleCreateNew}
-                    className="bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    Create New Entry
-                  </button>
-                </div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">{formatDate(date!)}</h1>
+
+        {entry ? (
+          <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+            <h2 className="text-2xl font-bold">{entry.title}</h2>
+            <p className="whitespace-pre-wrap">{entry.contentRaw}</p>
+
+            {entry.contentAI && (
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                <h3 className="font-semibold mb-2">AI Enhanced Version</h3>
+                <p>{entry.contentAI}</p>
               </div>
             )}
+
+            {entry.aiSummary && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-semibold mb-2">AI Summary</h4>
+                <p>{entry.aiSummary}</p>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 text-sm text-gray-600">
+              {entry.mood && <div>Mood: {entry.mood} {entry.moodIntensity && `(${entry.moodIntensity}/10)`}</div>}
+              <div>Type: {entry.diaryType.toLowerCase()}</div>
+              {entry.location && <div>Location: {entry.location}</div>}
+              {entry.isLocked && <div>🔒 Locked {entry.passwordHint && `(Hint: ${entry.passwordHint})`}</div>}
+            </div>
+
+            {entry.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {entry.tags.map((tag, idx) => (
+                  <span key={idx} className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {entry.mediaUrls.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                {entry.mediaUrls.map((url, idx) => (
+                  <img key={idx} src={url} alt={`Attachment ${idx + 1}`} className="rounded-lg h-32 w-full object-cover" />
+                ))}
+              </div>
+            )}
+
+            <div className="flex space-x-2 mt-4">
+              <button onClick={handleCreate} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+                Edit
+              </button>
+              <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                Delete
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-600 mb-4">No entry for this date.</p>
+            <button
+              onClick={handleCreate}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            >
+              Create New Entry
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

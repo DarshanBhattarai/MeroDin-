@@ -31,7 +31,7 @@ export default function EntriesListPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">My Diary Entries</h1>
           <Link
-            href="/pages/entries/create"
+            href="/entries/create"
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
           >
             New Entry
@@ -44,7 +44,7 @@ export default function EntriesListPage() {
           {entries.map((entry) => (
             <div key={entry.id} className="bg-white rounded-lg shadow-md p-6">
               <Link
-                href={`/pages/entries/${entry.id}`}
+                href={`/entries/${entry.id}`}
                 className="block hover:bg-gray-50 -m-6 p-6 rounded-lg"
               >
                 <h2 className="text-xl font-semibold text-gray-900">

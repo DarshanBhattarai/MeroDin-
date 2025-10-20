@@ -28,7 +28,7 @@ export default function DashboardPage() {
       try {
         // Dispatch thunks with correct types
         await Promise.all([
-          dispatch(fetchEntriesThunk()).unwrap(),
+          dispatch(fetchEntriesThunk({})).unwrap(),
           dispatch(fetchAnalyticsThunk()).unwrap(), 
         ]);
       } catch (err) {

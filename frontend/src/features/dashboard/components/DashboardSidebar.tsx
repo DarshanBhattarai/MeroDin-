@@ -23,7 +23,7 @@ const navigationItems = [
   { name: "Settings", href: "/pages/settings", icon: Settings },
 ];
 
-export const DashboardSidebar: React.FC = () => {
+export const  DashboardSidebar: React.FC = () => {
   const pathname = usePathname();
   const handleLogout = async () => {
     try {
