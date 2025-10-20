@@ -1,54 +1,51 @@
-"use client";
+'use client';
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/features/auth/components/ProtectedRoute";
 import { DashboardLayout } from "@/features/dashboard/layouts/DashboardLayout";
 import { RecentEntries } from "@/features/dashboard/components/RecentEntries";
 import { DiaryStats } from "@/features/dashboard/components/DiaryStats";
 import { QuickActions } from "@/features/dashboard/components/QuickActions";
-import {
-  useDiary,
-  useDiaryAnalytics,
-} from "@/features/entities/hooks/useDiary";
+import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
+import { fetchEntriesThunk } from "@/features/entities/redux/diaryThunks";
+import { fetchAnalyticsThunk } from "@/features/entities/redux/diaryAnalyticsThunks";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { entries, fetchMyEntries, error, isLoading } = useDiary();
-  const { stats, fetchAnalytics, loading: analyticsLoading } = useDiaryAnalytics();
-  
-  const isLoaded = React.useRef(false);
+  const dispatch = useAppDispatch();
 
+  // Redux selectors
+  const { entries, loading: entriesLoading, error: entriesError } = useAppSelector(
+    (state) => state.diary
+  );
+  const { stats, loading: analyticsLoading, error: analyticsError } = useAppSelector(
+    (state) => state.diaryAnalytics
+  );
 
-  
-
-  React.useEffect(() => {
-    if (isLoaded.current) return;
-    isLoaded.current = true;
-
+  useEffect(() => {
     const loadData = async () => {
       try {
-        await Promise.all([fetchMyEntries(), fetchAnalytics()]);
+        // Dispatch thunks with correct types
+        await Promise.all([
+          dispatch(fetchEntriesThunk()).unwrap(),
+          dispatch(fetchAnalyticsThunk()).unwrap(), 
+        ]);
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
 
-        // Handle auth errors
-        if (
-          err instanceof Error &&
-          err.message.includes("Authentication failed")
-        ) {
+        // Handle authentication errors
+        if (err instanceof Error && err.message.includes("Authentication failed")) {
           router.push("/pages/auth/login");
         }
       }
     };
 
     loadData();
-  }, [fetchMyEntries, fetchAnalytics, router]);
+  }, [dispatch, router]);
 
-  // Determine loading state dynamically
-  const isFetchingEntries = isLoading("fetchMyEntries");
-  const isFetchingAnalytics = analyticsLoading;
-  const loading = isFetchingEntries || isFetchingAnalytics;
+  const loading = entriesLoading || analyticsLoading;
+  const error = entriesError || analyticsError;
 
   return (
     <ProtectedRoute>
@@ -85,7 +82,7 @@ export default function DashboardPage() {
           {!loading && <QuickActions />}
 
           {/* Recent Entries */}
-          {!loading && (
+          {!loading && entries && (
             <div className="mt-8">
               <RecentEntries entries={entries} />
             </div>

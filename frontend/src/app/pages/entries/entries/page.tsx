@@ -2,22 +2,20 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
-import { useDiary } from "@/features/entities/hooks/useDiary";
+import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
+import { fetchEntriesThunk } from "@/features/entities/redux/diaryThunks";
 
 export default function EntriesListPage() {
-  const { entries, fetchEntries, isLoading } = useDiary();
+  const dispatch = useAppDispatch();
+  const entries = useAppSelector((state) => state.diary.entries);
+  const loading = useAppSelector((state) => state.diary.loading);
+  const error = useAppSelector((state) => state.diary.error);
 
-useEffect(() => {
-  // Run only once on mount
-  let mounted = true;
-  if (mounted) fetchEntries();
-  return () => {
-    mounted = false;
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+  useEffect(() => {
+    dispatch(fetchEntriesThunk({})); // fetch all entries without filters
+  }, [dispatch]);
 
-  if (isLoading("fetchEntries")) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto px-4">
@@ -39,6 +37,8 @@ useEffect(() => {
             New Entry
           </Link>
         </div>
+
+        {error && <p className="text-red-500 mb-4">{error}</p>}
 
         <div className="space-y-4">
           {entries.map((entry) => (

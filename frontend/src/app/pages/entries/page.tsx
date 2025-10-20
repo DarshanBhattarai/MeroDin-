@@ -1,40 +1,27 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { DiaryEntryCard } from "@/features/entities/components/DiaryEntryCard";
-import { useDiary } from "@/features/entities/hooks/useDiary";
 import { DashboardLayout } from "@/features/dashboard/layouts/DashboardLayout";
-import { DiaryType } from "@/types/diary";
+import { DiaryType, DiaryFilters } from "@/types/diary";
+import { useAppDispatch, useAppSelector } from "@/hooks/reduxHooks";
+import { fetchEntriesThunk, deleteEntryThunk } from "@/features/entities/redux/diaryThunks";
 
 export default function EntriesPage() {
-  const { entries, error, fetchMyEntries, deleteEntry, isLoading } = useDiary();
-  const [filters, setFilters] = useState<{ diaryType?: string; mood?: string }>({});
+  const dispatch = useAppDispatch();
+  const { entries, loading, error } = useAppSelector((state) => state.diary);
 
-  // --- Fetch entries safely with async function ---
-  const loadEntries = useCallback(async () => {
-    await fetchMyEntries(filters);
-  }, [filters, fetchMyEntries]);
+  const [filters, setFilters] = useState<DiaryFilters>({});
 
+  // Fetch entries on mount or when filters change
   useEffect(() => {
-    let cancelled = false;
-    const fetchData = async () => {
-      if (cancelled) return;
-      await loadEntries();
-    };
-    fetchData();
-    return () => {
-      cancelled = true;
-    };
-  }, [filters, loadEntries]);
+    dispatch(fetchEntriesThunk(filters));
+  }, [dispatch, filters]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this entry?")) return;
-    try {
-      await deleteEntry(id);
-    } catch (err) {
-      alert("Failed to delete entry");
-    }
+    dispatch(deleteEntryThunk(id));
   };
 
   const safeEntries = Array.isArray(entries) ? entries : [];
@@ -64,10 +51,14 @@ export default function EntriesPage() {
           {/* Filters */}
           <div className="bg-white p-4 rounded-lg shadow-md mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Example filter: diary type */}
               <select
                 value={filters.diaryType || ""}
-                onChange={(e) => setFilters((prev) => ({ ...prev, diaryType: e.target.value }))}
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    diaryType: e.target.value ? (e.target.value as DiaryType) : undefined,
+                  }))
+                }
                 className="border border-gray-300 rounded p-2"
               >
                 <option value="">All Types</option>
@@ -76,12 +67,11 @@ export default function EntriesPage() {
                 ))}
               </select>
 
-              {/* Example filter: mood */}
               <input
                 type="text"
                 placeholder="Mood"
                 value={filters.mood || ""}
-                onChange={(e) => setFilters((prev) => ({ ...prev, mood: e.target.value }))}
+                onChange={(e) => setFilters((prev) => ({ ...prev, mood: e.target.value || undefined }))}
                 className="border border-gray-300 rounded p-2"
               />
             </div>
@@ -95,7 +85,7 @@ export default function EntriesPage() {
           )}
 
           {/* Loading */}
-          {isLoading("fetchMyEntries") && safeEntries.length === 0 && (
+          {loading && safeEntries.length === 0 && (
             <div className="text-center py-12">Loading your diary entries...</div>
           )}
 

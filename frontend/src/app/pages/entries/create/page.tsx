@@ -1,25 +1,38 @@
-"use client";
+'use client';
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { DiaryEntryForm } from "@/features/entities/components/DiaryEntryForm";
-import { useDiary } from "@/features/entities/hooks/useDiary";
+import { useAppDispatch } from "@/hooks/reduxHooks"; // typed useDispatch hook
+import { createEntryThunk } from "@/features/entities/redux/diaryThunks";
 import { CreateDiaryEntryInput, UpdateDiaryEntryInput } from "@/types/diary";
 import { DashboardLayout } from "@/features/dashboard/layouts/DashboardLayout";
+import { DiaryEntryForm } from "@/features/entities/components/DiaryEntryForm";
 
 export default function CreateEntryPage() {
   const router = useRouter();
-  const { createEntry } = useDiary();
+  const dispatch = useAppDispatch();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (
     data: CreateDiaryEntryInput | UpdateDiaryEntryInput
   ) => {
+    setLoading(true);
+    setError(null);
+
     try {
-      // Type assertion since we know it's CreateDiaryEntryInput for creation
-      await createEntry(data as CreateDiaryEntryInput);
-      router.push("/pages/entries");
-    } catch (error) {
-      // Error is handled by the hook
+      const resultAction = await dispatch(createEntryThunk(data as CreateDiaryEntryInput));
+      
+      if (createEntryThunk.fulfilled.match(resultAction)) {
+        router.push("/pages/entries");
+      } else {
+        // Handle rejected action
+        setError(resultAction.payload as string || 'Failed to create entry');
+      }
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,8 +52,9 @@ export default function CreateEntryPage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <DiaryEntryForm
               onSubmit={handleSubmit}
-              submitText="Create Entry"
+              submitText={loading ? "Creating..." : "Create Entry"}
             />
+            {error && <p className="mt-2 text-red-500">{error}</p>}
           </div>
         </div>
       </div>

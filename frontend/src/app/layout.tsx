@@ -1,3 +1,8 @@
+// src/app/layout.tsx
+"use client";
+
+import { Provider } from "react-redux";
+import { store } from "@/app/store";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import "./globals.css";
 
@@ -9,7 +14,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <Provider store={store}>
+          <AuthProvider>{children}</AuthProvider>
+        </Provider>
       </body>
     </html>
   );
