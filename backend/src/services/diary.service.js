@@ -380,6 +380,56 @@ export const diaryService = {
     });
     return result._avg.moodIntensity;
   },
+  async getEntriesByDate(userId, date) {
+    const entries = await prisma.diaryEntry.findMany({
+      where: {
+        userId,
+        createdAt: { gte: new Date(date), lt: new Date(date + "T23:59:59") },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return entries.map(this.formatDiaryResponse);
+  },
+
+  async getEntriesByMonth(userId, month) {
+    const start = new Date(`${month}-01`);
+    const end = new Date(
+      start.getFullYear(),
+      start.getMonth() + 1,
+      0,
+      23,
+      59,
+      59
+    );
+    const entries = await prisma.diaryEntry.findMany({
+      where: { userId, createdAt: { gte: start, lte: end } },
+      orderBy: { createdAt: "desc" },
+    });
+    return entries.map(this.formatDiaryResponse);
+  },
+
+  async getEntriesByDateRange(userId, startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate + "T23:59:59");
+    const entries = await prisma.diaryEntry.findMany({
+      where: { userId, createdAt: { gte: start, lte: end } },
+      orderBy: { createdAt: "desc" },
+    });
+    return entries.map(this.formatDiaryResponse);
+  },
+
+  async deleteEntryByDate(userId, entryDate) {
+    const start = new Date(entryDate);
+    const end = new Date(entryDate + "T23:59:59");
+    const entries = await prisma.diaryEntry.findMany({
+      where: { userId, createdAt: { gte: start, lte: end } },
+    });
+    const deletedIds = entries.map((e) => e.id);
+    await prisma.diaryEntry.deleteMany({
+      where: { id: { in: deletedIds } },
+    });
+    return { message: "Entries deleted successfully", deletedIds };
+  },
 
   // -------------------
   // HELPERS

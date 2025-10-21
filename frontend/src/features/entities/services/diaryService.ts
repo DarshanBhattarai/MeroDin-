@@ -1,3 +1,4 @@
+// src/features/entities/services/diaryService.ts
 import {
   DiaryEntry,
   CreateDiaryEntryInput,
@@ -5,6 +6,7 @@ import {
   DiaryStats,
   DiaryFilters,
 } from "@/types/diary";
+import { securityUtils } from "@/utils/securityUtils";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -16,13 +18,10 @@ type RequestOptions = {
 };
 
 const request = async (endpoint: string, options: RequestOptions = {}) => {
-  const config = {
+  const config: RequestInit = {
     method: options.method || "GET",
-    credentials: "include" as RequestCredentials, // send cookies
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...options.headers },
     ...(options.body && { body: options.body }),
   };
 
@@ -39,24 +38,67 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
   return data;
 };
 
-// Existing functions
+// ----------------------
+// 🔐 Decryption Helpers
+// ----------------------
+
+// Decrypt a single diary entry
+// 🔐 Robust helper to decrypt a single diary entry safely
+export const decryptEntry = (entry: Partial<DiaryEntry>): DiaryEntry => ({
+  id: entry.id ?? 0, // fallback to 0 if undefined
+  title: entry.title ? securityUtils.decrypt(entry.title) : "",
+  contentRaw: entry.contentRaw ? securityUtils.decrypt(entry.contentRaw) : "",
+  contentAI: entry.contentAI
+    ? securityUtils.decrypt(entry.contentAI)
+    : undefined,
+  aiSummary: entry.aiSummary
+    ? securityUtils.decrypt(entry.aiSummary)
+    : undefined,
+  mood: entry.mood ?? undefined,
+  moodIntensity: entry.moodIntensity ?? undefined,
+  diaryType: entry.diaryType ?? "NORMAL",
+  tags: entry.tags ?? [],
+  mediaUrls: entry.mediaUrls ?? [],
+  location: entry.location ?? undefined,
+  isLocked: entry.isLocked ?? false,
+  passwordHint: entry.passwordHint
+    ? securityUtils.decrypt(entry.passwordHint)
+    : undefined,
+  aiKeywords: entry.aiKeywords ?? [],
+  entryDate: entry.entryDate ?? "",
+  createdAt: entry.createdAt ?? new Date().toISOString(),
+  updatedAt: entry.updatedAt ?? new Date().toISOString(),
+});
+
+// Decrypt multiple entries safely
+export const decryptEntries = (entries: Partial<DiaryEntry>[] = []): DiaryEntry[] =>
+  entries.map(decryptEntry);
+
+// ----------------------
+// 📄 CRUD & Analytics
+// ----------------------
+
 export const createEntry = async (
   data: CreateDiaryEntryInput
 ): Promise<DiaryEntry> => {
-  return request("/entries", { method: "POST", body: JSON.stringify(data) });
+  const response = await request("/entries", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return decryptEntry(response.entry || response);
 };
 
 export const getEntries = async (filters: DiaryFilters = {}) => {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
+    if (value !== undefined && value !== null && value !== "")
       params.append(key, value.toString());
-    }
   });
 
   const response = await request(`/entries?${params.toString()}`);
+  const entries: Partial<DiaryEntry>[] = response.entries || response || [];
   return {
-    entries: response.entries || response || [],
+    entries: decryptEntries(entries),
     pagination: response.pagination || null,
   };
 };
@@ -69,12 +111,12 @@ export const getMyEntries = async (
     if (value) params.append(key, value);
   });
   const response = await request(`/entries/my?${params.toString()}`);
-  return response.entries || []; // Safe fallback
+  return decryptEntries(response.entries || []);
 };
 
 export const getEntryById = async (id: number): Promise<DiaryEntry> => {
   const response = await request(`/entries/${id}`);
-  return response.entry || response; // fallback if API wraps data differently
+  return decryptEntry(response.entry || response);
 };
 
 export const updateEntry = async (
@@ -85,37 +127,41 @@ export const updateEntry = async (
     method: "PUT",
     body: JSON.stringify(data),
   });
-  return response.entry || response;
+  return decryptEntry(response.entry || response);
 };
 
 export const deleteEntry = async (id: number): Promise<{ message: string }> => {
-  const response = await request(`/entries/${id}`, { method: "DELETE" });
-  return response;
+  return request(`/entries/${id}`, { method: "DELETE" });
 };
 
 export const getAnalytics = async (): Promise<DiaryStats> => {
   const response = await request("/entries/analytics");
-  return response.stats || response; // fallback
+  return response.stats || response;
 };
 
 export const searchEntries = async (
   query: string,
   filters: { diaryType?: string; mood?: string } = {}
-): Promise<{ entries: DiaryEntry[]; pagination?: any }> => {
+) => {
   const params = new URLSearchParams({ query });
   Object.entries(filters).forEach(([key, value]) => {
     if (value) params.append(key, value);
   });
   const response = await request(`/entries/search?${params.toString()}`);
-  return { entries: response.entries || [], pagination: response.pagination };
+  return {
+    entries: decryptEntries(response.entries || []),
+    pagination: response.pagination,
+  };
 };
 
-// NEW FUNCTIONS FOR CALENDAR
+// ----------------------
+// 📅 Calendar / Date-based
+// ----------------------
+
 export const getEntriesByDate = async (date: string): Promise<DiaryEntry[]> => {
   try {
-    // Use the existing getEntries with date filter
-    const result = await getEntries({ date } as DiaryFilters);
-    return result.entries || [];
+    const { entries } = await getEntries({ date });
+    return entries;
   } catch (error) {
     console.error("Error fetching entries by date:", error);
     return [];
@@ -126,21 +172,18 @@ export const getEntriesByMonth = async (
   month: string
 ): Promise<DiaryEntry[]> => {
   try {
-    // Use the existing getEntries with month filter
-    const result = await getEntries({ month } as DiaryFilters);
-    return result.entries || [];
+    const { entries } = await getEntries({ month });
+    return entries;
   } catch (error) {
     console.error("Error fetching entries by month:", error);
     return [];
   }
 };
+
 export const deleteEntryByDate = async (
   entryDate: string
 ): Promise<{ message: string }> => {
-  const response = await request(`/entries/date/${entryDate}`, {
-    method: "DELETE",
-  });
-  return response;
+  return request(`/entries/date/${entryDate}`, { method: "DELETE" });
 };
 
 export const getEntriesByDateRange = async (
@@ -148,17 +191,17 @@ export const getEntriesByDateRange = async (
   endDate: string
 ): Promise<DiaryEntry[]> => {
   try {
-    // Use the existing getEntries with date range filters
-    const result = await getEntries({
-      startDate,
-      endDate,
-    } as DiaryFilters);
-    return result.entries || [];
+    const { entries } = await getEntries({ startDate, endDate });
+    return entries;
   } catch (error) {
     console.error("Error fetching entries by date range:", error);
     return [];
   }
 };
+
+// ----------------------
+// 🔹 Export Diary Service
+// ----------------------
 
 export const diaryService = {
   createEntry,

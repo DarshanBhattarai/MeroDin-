@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Calendar, ArrowRight, BookOpen, PlusCircle, Lock } from 'lucide-react';
 import { DiaryEntry } from '@/types/diary';
+import { securityUtils } from '@/utils/securityUtils';
 
 type RecentEntriesProps = {
   entries: DiaryEntry[];
@@ -15,7 +16,14 @@ export const RecentEntries: React.FC<RecentEntriesProps> = ({ entries }) => {
     });
   };
 
-  if (entries.length === 0) {
+  // Helper to safely decrypt fields for display
+  const decryptEntryForUI = (entry: DiaryEntry) => ({
+    ...entry,
+    title: entry.title ? securityUtils.decrypt(entry.title) : '',
+    contentRaw: entry.contentRaw ? securityUtils.decrypt(entry.contentRaw) : '',
+  });
+
+  if (!entries || entries.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="text-center py-8">
@@ -36,63 +44,67 @@ export const RecentEntries: React.FC<RecentEntriesProps> = ({ entries }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800">Recent Entries</h2>
-          <Link
-            href="/entries"
-            className="flex items-center text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            View All
-            <ArrowRight className="w-4 h-4 ml-1" />
-          </Link>
-        </div>
+      <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-800">Recent Entries</h2>
+        <Link
+          href="/entries"
+          className="flex items-center text-blue-600 hover:text-blue-700 text-sm font-medium"
+        >
+          View All
+          <ArrowRight className="w-4 h-4 ml-1" />
+        </Link>
       </div>
-      
+
       <div className="divide-y divide-gray-100">
-        {entries.slice(0, 5).map((entry) => (
-          <Link
-            key={entry.id}
-            href={`/entries/${entry.id}`}
-            className="block p-6 hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold text-gray-800 truncate flex-1 mr-4">
-                {entry.title}
-              </h3>
-              <div className="flex items-center text-sm text-gray-500">
-                <Calendar className="w-4 h-4 mr-1" />
-                {formatDate(entry.createdAt)}
+        {entries.slice(0, 5).map((rawEntry) => {
+          const entry = decryptEntryForUI(rawEntry);
+          return (
+            <Link
+              key={entry.id}
+              href={`/entries/${entry.id}`}
+              className="block p-6 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold text-gray-800 truncate flex-1 mr-4">
+                  {entry.title}
+                </h3>
+                <div className="flex items-center text-sm text-gray-500">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  {formatDate(entry.createdAt)}
+                </div>
               </div>
-            </div>
-            
-            <p className="text-gray-600 text-sm line-clamp-2 mb-3">
-              {entry.contentRaw}
-            </p>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {entry.mood && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {entry.mood}
+
+              <p className="text-gray-600 text-sm line-clamp-2 mb-3">
+                {entry.contentRaw}
+              </p>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {entry.mood && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {entry.mood}
+                    </span>
+                  )}
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      entry.diaryType === 'NORMAL'
+                        ? 'bg-gray-100 text-gray-800'
+                        : entry.diaryType === 'SECRET'
+                        ? 'bg-red-100 text-red-800'
+                        : entry.diaryType === 'MEMORY'
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}
+                  >
+                    {entry.diaryType.replace('_', ' ')}
                   </span>
-                )}
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  entry.diaryType === 'NORMAL' ? 'bg-gray-100 text-gray-800' :
-                  entry.diaryType === 'SECRET' ? 'bg-red-100 text-red-800' :
-                  entry.diaryType === 'MEMORY' ? 'bg-purple-100 text-purple-800' :
-                  'bg-green-100 text-green-800'
-                }`}>
-                  {entry.diaryType.replace('_', ' ')}
-                </span>
+                </div>
+
+                {entry.isLocked && <Lock className="w-4 h-4 text-yellow-500" />}
               </div>
-              
-              {entry.isLocked && (
-                <Lock className="w-4 h-4 text-yellow-500" />
-              )}
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

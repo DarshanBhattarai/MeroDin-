@@ -276,4 +276,72 @@ export const diaryController = {
       return responseHandler.error(res, error.message, error.statusCode || 500);
     }
   },
+
+  // Get entries by specific date
+  getEntriesByDate: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const date = req.query.date;
+      const entries = await diaryService.getEntriesByDate(userId, date);
+      return responseHandler.success(
+        res,
+        { entries },
+        "Entries fetched by date"
+      );
+    } catch (error) {
+      console.error("Get entries by date error:", error);
+      return responseHandler.error(res, error.message, error.statusCode || 500);
+    }
+  },
+
+  // Get entries by month
+  getEntriesByMonth: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const month = req.query.month;
+      const entries = await diaryService.getEntriesByMonth(userId, month);
+      return responseHandler.success(
+        res,
+        { entries },
+        "Entries fetched by month"
+      );
+    } catch (error) {
+      console.error("Get entries by month error:", error);
+      return responseHandler.error(res, error.message, error.statusCode || 500);
+    }
+  },
+
+  // Get entries by date range
+  getEntriesByDateRange: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { startDate, endDate } = req.query;
+      const entries = await diaryService.getEntriesByDateRange(
+        userId,
+        startDate,
+        endDate
+      );
+      return responseHandler.success(
+        res,
+        { entries },
+        "Entries fetched by date range"
+      );
+    } catch (error) {
+      console.error("Get entries by date range error:", error);
+      return responseHandler.error(res, error.message, error.statusCode || 500);
+    }
+  },
+
+  // Delete entry by date
+  deleteEntryByDate: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const entryDate = req.params.entryDate;
+      const result = await diaryService.deleteEntryByDate(userId, entryDate);
+      return responseHandler.success(res, result, "Entry deleted by date");
+    } catch (error) {
+      console.error("Delete entry by date error:", error);
+      return responseHandler.error(res, error.message, error.statusCode || 500);
+    }
+  },
 };
