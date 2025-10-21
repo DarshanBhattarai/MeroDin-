@@ -19,6 +19,16 @@ router.get("/entries/search", diaryController.searchDiaryEntries);
 router.get("/entries/analytics", diaryController.getDiaryAnalytics);
 router.get("/entries", diaryController.getAllDiaryEntries);
 
+// New date/month/range routes
+router.get("/entries/date/:entryDate", diaryController.fetchEntriesByDate);
+router.get("/entries/by-month", diaryController.fetchEntriesByMonth); // expects ?month=YYYY-MM
+router.get("/entries/by-range", diaryController.fetchEntriesByDateRange); // expects ?startDate=&endDate=
+router.delete(
+  "/entries/date/:entryDate",
+  sensitiveOperationRateLimit,
+  diaryController.deleteEntriesByDate
+);
+
 // Single entry routes with ownership check
 router.get("/entries/:id", diaryOwnership, diaryController.getDiaryEntry);
 router.put(

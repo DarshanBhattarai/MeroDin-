@@ -46,17 +46,19 @@ export const createEntry = async (
   return request("/entries", { method: "POST", body: JSON.stringify(data) });
 };
 
-export const getEntries = async (
-  filters: DiaryFilters = {}
-): Promise<{ entries: DiaryEntry[]; pagination?: any }> => {
+export const getEntries = async (filters: DiaryFilters = {}) => {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
       params.append(key, value.toString());
     }
   });
+
   const response = await request(`/entries?${params.toString()}`);
-  return { entries: response.entries || [], pagination: response.pagination };
+  return {
+    entries: response.entries || response || [],
+    pagination: response.pagination || null,
+  };
 };
 
 export const getMyEntries = async (
@@ -165,7 +167,7 @@ export const diaryService = {
   getEntryById,
   updateEntry,
   deleteEntry,
-  deleteEntryByDate, // ✅ new
+  deleteEntryByDate,
   getAnalytics,
   searchEntries,
   getEntriesByDate,
