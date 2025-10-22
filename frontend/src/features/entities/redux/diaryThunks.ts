@@ -5,51 +5,54 @@ import {
   CreateDiaryEntryInput,
   UpdateDiaryEntryInput,
 } from "@/types/diary";
-import { diaryService, decryptEntry, decryptEntries } from "../services/diaryService";
+import {
+  diaryService,
+  decryptEntry,
+  decryptEntries,
+} from "../services/diaryService";
 
-// -----------------
-// Basic CRUD Thunks
-// -----------------
-
+// Fetch all entries
 export const fetchEntriesThunk = createAsyncThunk<DiaryEntry[], DiaryFilters>(
   "diary/fetchEntries",
   async (filters, { rejectWithValue }) => {
     try {
       const res = await diaryService.getEntries(filters ?? {});
-      return decryptEntries(res.entries);
+      // Ensure always array
+      const entriesArray = Array.isArray(res?.entries) ? res.entries : [];
+      return decryptEntries(entriesArray);
     } catch (err: any) {
       return rejectWithValue(err.message || "Failed to fetch entries");
     }
   }
 );
 
-export const createEntryThunk = createAsyncThunk<DiaryEntry, CreateDiaryEntryInput>(
-  "diary/createEntry",
-  async (data, { rejectWithValue }) => {
-    try {
-      const entry = await diaryService.createEntry(data);
-      return decryptEntry(entry);
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to create entry");
-    }
+// Create entry
+export const createEntryThunk = createAsyncThunk<
+  DiaryEntry,
+  CreateDiaryEntryInput
+>("diary/createEntry", async (data, { rejectWithValue }) => {
+  try {
+    const entry = await diaryService.createEntry(data);
+    return decryptEntry(entry);
+  } catch (err: any) {
+    return rejectWithValue(err.message || "Failed to create entry");
   }
-);
+});
 
+// Update entry
 export const updateEntryThunk = createAsyncThunk<
   DiaryEntry,
   { id: number; data: UpdateDiaryEntryInput }
->(
-  "diary/updateEntry",
-  async ({ id, data }, { rejectWithValue }) => {
-    try {
-      const entry = await diaryService.updateEntry(id, data);
-      return decryptEntry(entry);
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to update entry");
-    }
+>("diary/updateEntry", async ({ id, data }, { rejectWithValue }) => {
+  try {
+    const entry = await diaryService.updateEntry(id, data);
+    return decryptEntry(entry);
+  } catch (err: any) {
+    return rejectWithValue(err.message || "Failed to update entry");
   }
-);
+});
 
+// Delete entry
 export const deleteEntryThunk = createAsyncThunk<number, number>(
   "diary/deleteEntry",
   async (id, { rejectWithValue }) => {
@@ -62,34 +65,20 @@ export const deleteEntryThunk = createAsyncThunk<number, number>(
   }
 );
 
-export const fetchEntryByIdThunk = createAsyncThunk<DiaryEntry, number>(
-  "diary/fetchEntryById",
-  async (id, { rejectWithValue }) => {
-    try {
-      const entry = await diaryService.getEntryById(id);
-      return decryptEntry(entry);
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to fetch entry");
-    }
+// Fetch by date
+export const fetchEntryByDateThunk = createAsyncThunk<
+  DiaryEntry | null,
+  string
+>("diary/fetchEntryByDate", async (entryDate, { rejectWithValue }) => {
+  try {
+    const entries = await diaryService.getEntriesByDate(entryDate);
+    return entries.length ? decryptEntry(entries[0]) : null;
+  } catch (err: any) {
+    return rejectWithValue(err.message || "Failed to fetch entry by date");
   }
-);
+});
 
-// -------------------------
-// Date / Month / Range Thunks
-// -------------------------
-
-export const fetchEntryByDateThunk = createAsyncThunk<DiaryEntry | null, string>(
-  "diary/fetchEntryByDate",
-  async (entryDate, { rejectWithValue }) => {
-    try {
-      const entries = await diaryService.getEntriesByDate(entryDate);
-      return entries.length > 0 ? decryptEntry(entries[0]) : null;
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to fetch entry by date");
-    }
-  }
-);
-
+// Update by date
 export const updateEntryByDateThunk = createAsyncThunk<
   DiaryEntry,
   { entryDate: string; data: UpdateDiaryEntryInput }
@@ -107,6 +96,7 @@ export const updateEntryByDateThunk = createAsyncThunk<
   }
 );
 
+// Delete by date
 export const deleteEntryByDateThunk = createAsyncThunk<string, string>(
   "diary/deleteEntryByDate",
   async (entryDate, { rejectWithValue }) => {
@@ -115,33 +105,6 @@ export const deleteEntryByDateThunk = createAsyncThunk<string, string>(
       return entryDate;
     } catch (err: any) {
       return rejectWithValue(err.message || "Failed to delete entry by date");
-    }
-  }
-);
-
-export const fetchEntriesByMonthThunk = createAsyncThunk<DiaryEntry[], string>(
-  "diary/fetchEntriesByMonth",
-  async (month, { rejectWithValue }) => {
-    try {
-      const entries = await diaryService.getEntriesByMonth(month);
-      return decryptEntries(entries);
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to fetch entries by month");
-    }
-  }
-);
-
-export const fetchEntriesByDateRangeThunk = createAsyncThunk<
-  DiaryEntry[],
-  { startDate: string; endDate: string }
->(
-  "diary/fetchEntriesByDateRange",
-  async ({ startDate, endDate }, { rejectWithValue }) => {
-    try {
-      const entries = await diaryService.getEntriesByDateRange(startDate, endDate);
-      return decryptEntries(entries);
-    } catch (err: any) {
-      return rejectWithValue(err.message || "Failed to fetch entries by date range");
     }
   }
 );

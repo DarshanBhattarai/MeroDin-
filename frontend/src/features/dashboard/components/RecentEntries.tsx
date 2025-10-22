@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
 import { Calendar, ArrowRight, BookOpen, PlusCircle, Lock } from 'lucide-react';
@@ -9,17 +11,17 @@ type RecentEntriesProps = {
 };
 
 export const RecentEntries: React.FC<RecentEntriesProps> = ({ entries }) => {
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     });
   };
 
-  // Helper to safely decrypt fields for display
   const decryptEntryForUI = (entry: DiaryEntry) => ({
     ...entry,
-    title: entry.title ? securityUtils.decrypt(entry.title) : '',
+    title: entry.title ? securityUtils.decrypt(entry.title) : 'Untitled',
     contentRaw: entry.contentRaw ? securityUtils.decrypt(entry.contentRaw) : '',
   });
 
@@ -58,6 +60,20 @@ export const RecentEntries: React.FC<RecentEntriesProps> = ({ entries }) => {
       <div className="divide-y divide-gray-100">
         {entries.slice(0, 5).map((rawEntry) => {
           const entry = decryptEntryForUI(rawEntry);
+
+          const diaryTypeColor = (() => {
+            switch (entry.diaryType) {
+              case 'NORMAL':
+                return 'bg-gray-100 text-gray-800';
+              case 'SECRET':
+                return 'bg-red-100 text-red-800';
+              case 'MEMORY':
+                return 'bg-purple-100 text-purple-800';
+              default:
+                return 'bg-green-100 text-green-800';
+            }
+          })();
+
           return (
             <Link
               key={entry.id}
@@ -85,18 +101,8 @@ export const RecentEntries: React.FC<RecentEntriesProps> = ({ entries }) => {
                       {entry.mood}
                     </span>
                   )}
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      entry.diaryType === 'NORMAL'
-                        ? 'bg-gray-100 text-gray-800'
-                        : entry.diaryType === 'SECRET'
-                        ? 'bg-red-100 text-red-800'
-                        : entry.diaryType === 'MEMORY'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}
-                  >
-                    {entry.diaryType.replace('_', ' ')}
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${diaryTypeColor}`}>
+                    {entry.diaryType?.replace('_', ' ') || 'N/A'}
                   </span>
                 </div>
 

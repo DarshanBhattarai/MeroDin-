@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
 
-  // Redux selectors
   const { entries, loading: entriesLoading, error: entriesError } = useAppSelector(
     (state) => state.diary
   );
@@ -23,24 +22,23 @@ export default function DashboardPage() {
     (state) => state.diaryAnalytics
   );
 
+  const safeEntries = Array.isArray(entries) ? entries : [];
+
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Dispatch thunks with correct types
         await Promise.all([
           dispatch(fetchEntriesThunk({})).unwrap(),
-          dispatch(fetchAnalyticsThunk()).unwrap(), 
+          dispatch(fetchAnalyticsThunk()).unwrap(),
         ]);
       } catch (err) {
-        console.error("Failed to load dashboard data:", err);
+        console.error("❌ Failed to load dashboard data:", err);
 
-        // Handle authentication errors
         if (err instanceof Error && err.message.includes("Authentication failed")) {
           router.push("/pages/auth/login");
         }
       }
     };
-
     loadData();
   }, [dispatch, router]);
 
@@ -51,40 +49,34 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <DashboardLayout>
         <div className="max-w-7xl mx-auto">
-          {/* Welcome Header */}
+          {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome Back!
-            </h1>
-            <p className="text-gray-600">
-              Here's what's been happening in your diary.
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h1>
+            <p className="text-gray-600">Here’s what’s been happening in your diary.</p>
           </div>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-              {error}
+              {typeof error === "string" ? error : "Something went wrong while loading data."}
             </div>
           )}
 
-          {/* Loading State */}
+          {/* Loading */}
           {loading && !error && (
-            <div className="text-center py-8">
-              <div className="text-gray-500">Loading your dashboard...</div>
-            </div>
+            <div className="text-center py-8 text-gray-500">Loading your dashboard...</div>
           )}
 
-          {/* Stats Cards */}
+          {/* Stats */}
           {!loading && stats && <DiaryStats stats={stats} />}
 
           {/* Quick Actions */}
           {!loading && <QuickActions />}
 
           {/* Recent Entries */}
-          {!loading && entries && (
+          {!loading && (
             <div className="mt-8">
-              <RecentEntries entries={entries} />
+              <RecentEntries entries={safeEntries} />
             </div>
           )}
         </div>
